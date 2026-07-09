@@ -11,6 +11,8 @@ class Wishlist extends Model
         'customer_id',
         'product_id',
         'collection_id',
+        'product_variant_id',
+        'size_id',
     ];
 
     public function customer()
@@ -24,7 +26,17 @@ class Wishlist extends Model
     }
 
     public function collection()
-{
-    return $this->belongsTo(Collection::class);
-}
+    {
+        return $this->belongsTo(Collection::class);
+    }
+
+    public function productVariant()
+    {
+        return $this->belongsTo(ProductVariant::class);
+    }
+
+    public function size()
+    {
+        return $this->belongsTo(Size::class);
+    }
 }

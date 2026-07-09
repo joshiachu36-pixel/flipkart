@@ -75,8 +75,9 @@ class CartController extends Controller
 
         $cartItems = Cart::with([
             'product',
-           'collection',
+            'collection',
             'productVariant.color',
+            'productVariant.sizes',
             'size'
         ])
         ->where('customer_id', $customerId)
@@ -86,9 +87,14 @@ class CartController extends Controller
 
 foreach ($cartItems as $item) {
 
-    $price = $item->productVariant
-    ? $item->productVariant->price
-    : $item->product->price;
+    if ($item->productVariant && $item->size_id) {
+        $sizeEntry = $item->productVariant->sizes->firstWhere('id', $item->size_id);
+        $price = $sizeEntry ? $sizeEntry->pivot->price : $item->productVariant->price;
+    } elseif ($item->productVariant) {
+        $price = $item->productVariant->price;
+    } else {
+        $price = $item->product->price;
+    }
 
     if ($item->collection) {
 

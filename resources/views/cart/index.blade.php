@@ -31,9 +31,16 @@
 
             @php
 
-                $price = $item->productVariant
-                ? $item->productVariant->price
-                : $item->product->price;
+                if ($item->productVariant && $item->size_id) {
+                    $sizeEntry = $item->productVariant->sizes->firstWhere('id', $item->size_id);
+                    $price = $sizeEntry ? $sizeEntry->pivot->price : $item->productVariant->price;
+                } elseif ($item->productVariant) {
+                    $price = $item->productVariant->price;
+                } else {
+                    $price = $item->product->price;
+                }
+
+                $originalPrice = $price;
 
                 if($item->collection)
                 {
@@ -132,12 +139,7 @@
 
                                         <span class="text-muted text-decoration-line-through">
 
-                                            ₹{{ number_format(
-                                                $item->productVariant
-                                                    ? $item->productVariant->price
-                                                    : $item->product->price,
-                                                2
-                                            ) }}
+                                            ₹{{ number_format($originalPrice, 2) }}
 
                                         </span>
 
@@ -169,12 +171,7 @@
 
                                 <h5 class="text-success fw-bold mb-3">
 
-                                   ₹{{ number_format(
-    $item->productVariant
-        ? $item->productVariant->price
-        : $item->product->price,
-    2
-) }}
+                                   ₹{{ number_format($price, 2) }}
 
                                 </h5>
 

@@ -34,15 +34,19 @@
 
                             <tr>
 
-                                <th width="12%">Color</th>
-
-                                <th width="12%">Price (₹)</th>
-
-                                <th width="30%">Sizes & Stock</th>
+                                <th width="15%">Color</th>
 
                                 <th width="20%">Variant Image</th>
 
-                                <th width="12%">Status</th>
+                                <th width="10%">Size</th>
+
+                                <th width="10%">Select</th>
+
+                                <th width="15%">Price (₹)</th>
+
+                                <th width="15%">Stock</th>
+
+                                <th width="15%">Status</th>
 
                             </tr>
 
@@ -50,46 +54,13 @@
 
                         <tbody>
 
-                            @foreach($colors as $color)
+@foreach($colors as $color)
 
-                            @php
+    @php
 
-                                $variant = $existingVariants[$color->id] ?? null;
+        $variant = $existingVariants[$color->id] ?? null;
 
-                            @endphp
-
-                            <tr>
-
-                                <td>
-
-                                    <div class="d-flex align-items-center gap-2">
-
-                                        <div 
-                                            style="width: 20px; height: 20px; background-color: {{ $color->code ?? '#000' }}; border-radius: 50%; border: 2px solid #ddd;">
-                                        </div>
-
-                                        <strong>{{ $color->name }}</strong>
-
-                                    </div>
-
-                                    <input type="hidden" name="variants[{{ $loop->index }}][color_id]" value="{{ $color->id }}">
-
-                                </td>
-
-                                <td>
-
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        class="form-control"
-                                        name="variants[{{ $loop->index }}][price]"
-                                        value="{{ $variant->price ?? 0 }}"
-                                        min="0"
-                                        placeholder="0.00">
-
-                                </td>
-
-                                <td>
+    @endphp
 
     @foreach($sizes as $size)
 
@@ -97,16 +68,17 @@
 
             $selected = false;
             $stock = 0;
+            $price = 0;
 
             if($variant){
 
-                $pivot = $variant->sizes->firstWhere('id',$size->id);
+                $pivot = $variant->sizes->firstWhere('id', $size->id);
 
                 if($pivot){
 
                     $selected = true;
-
                     $stock = $pivot->pivot->stock;
+                    $price = $pivot->pivot->price;
 
                 }
 
@@ -114,92 +86,143 @@
 
         @endphp
 
-        <div class="row mb-2 align-items-center">
+        <tr>
 
-            <div class="col-5">
+            @if($loop->first)
 
-                <div class="form-check">
+                <td rowspan="{{ $sizes->count() }}">
+
+                    <div class="d-flex align-items-center gap-2">
+
+                        <div
+                            style="width:20px;
+                                   height:20px;
+                                   border-radius:50%;
+                                   background:{{ $color->code ?? '#000' }};
+                                   border:1px solid #ccc;">
+                        </div>
+
+                        <strong>{{ $color->name }}</strong>
+
+                    </div>
 
                     <input
-                        class="form-check-input"
-                        type="checkbox"
+                        type="hidden"
+                        name="variants[{{ $loop->parent->index }}][color_id]"
+                        value="{{ $color->id }}">
 
-                        name="variants[{{ $loop->parent->index }}][sizes][{{ $size->id }}][selected]"
+                </td>
 
-                        value="1"
+                <td rowspan="{{ $sizes->count() }}">
 
-                        {{ $selected ? 'checked' : '' }}>
+                    <input
+                        type="file"
+                        class="form-control"
+                        name="variants[{{ $loop->parent->index }}][image]">
 
-                    <label class="form-check-label">
+                    @if($variant && $variant->image)
 
-                        {{ $size->name }}
+                        <small class="text-success">
 
-                    </label>
+                            Image Uploaded
 
-                </div>
+                        </small>
 
-            </div>
+                    @endif
 
-            <div class="col-7">
+                </td>
+
+            @endif
+
+            <td>
+
+                {{ $size->name }}
+
+            </td>
+
+            <td class="text-center">
+
+                <input
+                    type="checkbox"
+
+                    class="form-check-input size-checkbox"
+
+                    name="variants[{{ $loop->parent->index }}][sizes][{{ $size->id }}][selected]"
+
+                    value="1"
+
+                    {{ $selected ? 'checked' : '' }}>
+
+            </td>
+
+            <td>
+
+                <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="form-control size-price"
+                    name="variants[{{ $loop->parent->index }}][sizes][{{ $size->id }}][price]"
+                    value="{{ $price }}"
+                    {{ $selected ? '' : 'disabled' }}>
+
+            </td>
+
+            <td>
 
                 <input
                     type="number"
 
                     min="0"
 
-                    class="form-control"
-
-                    placeholder="Stock"
+                    class="form-control size-stock"
 
                     name="variants[{{ $loop->parent->index }}][sizes][{{ $size->id }}][stock]"
 
-                    value="{{ $stock }}">
+                    value="{{ $stock }}"
+                    
+                    {{ $selected ? '' : 'disabled' }}>
 
-            </div>
+            </td>
 
-        </div>
+            @if($loop->first)
+
+                <td rowspan="{{ $sizes->count() }}">
+
+                    <select
+                        class="form-select"
+
+                        name="variants[{{ $loop->parent->index }}][status]">
+
+                        <option
+                            value="1"
+                            {{ ($variant->status ?? 1)==1 ? 'selected' : '' }}>
+
+                            Active
+
+                        </option>
+
+                        <option
+                            value="0"
+                            {{ ($variant->status ?? 1)==0 ? 'selected' : '' }}>
+
+                            Inactive
+
+                        </option>
+
+                    </select>
+
+                </td>
+
+            @endif
+
+        </tr>
 
     @endforeach
 
-</td>
+@endforeach
 
-                                <td>
-
-                                    <input
-                                        type="file"
-                                        class="form-control"
-                                        name="variants[{{ $loop->index }}][image]"
-                                        accept="image/*">
-
-                                    @if($variant && $variant->image)
-
-                                        <small class="text-muted d-block mt-1">Current: Uploaded</small>
-
-                                    @endif
-
-                                </td>
-
-                                <td>
-
-                                    <select class="form-select" name="variants[{{ $loop->index }}][status]">
-
-                                        <option value="1" {{ ($variant->status ?? 1) == 1 ? 'selected' : '' }}>
-                                            Active
-                                        </option>
-
-                                        <option value="0" {{ ($variant->status ?? 1) == 0 ? 'selected' : '' }}>
-                                            Inactive
-                                        </option>
-
-                                    </select>
-
-                                </td>
-
-                            </tr>
-
-                            @endforeach
-
-                        </tbody>
+</tbody>
 
                     </table>
 
@@ -217,4 +240,41 @@
 
 </div>
 
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    document.querySelectorAll('.size-checkbox').forEach(function (checkbox) {
+
+        function toggleInputs() {
+
+            const row = checkbox.closest('tr');
+
+            const priceInput = row.querySelector('.size-price');
+            const stockInput = row.querySelector('.size-stock');
+
+            if (checkbox.checked) {
+
+                priceInput.disabled = false;
+                stockInput.disabled = false;
+
+            } else {
+
+                priceInput.disabled = true;
+                stockInput.disabled = true;
+
+                priceInput.value = 0;
+                stockInput.value = 0;
+
+            }
+
+        }
+
+        toggleInputs();
+
+        checkbox.addEventListener('change', toggleInputs);
+
+    });
+
+});
+</script>
 @endsection

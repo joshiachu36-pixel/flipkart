@@ -33,7 +33,7 @@ class ProductVariant extends Model
         'product_variant_id',
         'size_id'
     )
-    ->withPivot('stock')
+    ->withPivot('price', 'stock')
     ->withTimestamps();
 }
 }

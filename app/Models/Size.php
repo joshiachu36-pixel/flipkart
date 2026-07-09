@@ -11,7 +11,7 @@ class Size extends Model
         'status',
     ];
 
-   public function productVariants()
+  public function productVariants()
 {
     return $this->belongsToMany(
         ProductVariant::class,
@@ -19,7 +19,7 @@ class Size extends Model
         'size_id',
         'product_variant_id'
     )
-    ->withPivot('stock')
+    ->withPivot('price', 'stock')
     ->withTimestamps();
 }
 

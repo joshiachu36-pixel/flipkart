@@ -155,13 +155,21 @@
 
         'stock'      => $variant->stock,
 
-        'sizes' => $variant->sizes->map(function ($size) {
-            return [
-                'id'    => $size->id,
-                'name'  => $size->name,
-                'stock' => $size->pivot->stock,
-            ];
-        })->toArray(),
+        'sizes' => $variant->sizes->map(function ($size) use ($variant) {
+
+    return [
+
+        'id' => $size->id,
+
+        'name' => $size->name,
+
+        'stock' => $size->pivot->stock,
+
+        'price' => $size->pivot->price ?? $variant->price,
+
+    ];
+
+})->toArray(),
     ];
 });
 
@@ -172,7 +180,9 @@
 
     @if(isset($collection) && $collection && $collection->discount_value)
 
-        <h2 class="text-success fw-bold mb-1">
+        <h2
+            id="product-price"
+            class="text-success fw-bold mb-1">
 
             ₹{{ number_format($finalPrice, 2) }}
 
@@ -331,6 +341,16 @@
 
                     </button>
 
+                    <button
+                        type="submit"
+                        id="add-to-wishlist-button"
+                        formaction="{{ route('wishlist.toggle', $product) }}"
+                        class="btn btn-outline-danger btn-lg px-4"
+                        {{ $colors->count() ? 'disabled' : '' }}
+                        title="Add to Wishlist">
+                        ❤️
+                    </button>
+
                 </div>
 
             </form>
@@ -374,6 +394,7 @@
                 const selectedSizeIdInput = document.getElementById('selected-size-id');
                 const selectedVariantInput = document.getElementById('selected-product-variant-id');
                 const addToCartButton = document.getElementById('add-to-cart-button');
+                const addToWishlistButton = document.getElementById('add-to-wishlist-button');
                 const addToCartForm = document.getElementById('add-to-cart-form');
                 const imageElement = document.getElementById('product-detail-image');
                 let variants = [];
@@ -381,17 +402,24 @@
                 // If no color variants exist, enable the button
                 if (!colorButtons.length) {
                     addToCartButton.disabled = false;
+                    if(addToWishlistButton) addToWishlistButton.disabled = false;
                     // Form will submit normally for products without variants
                     return;
                 }
 
                 colorButtons.forEach((button) => {
                     variants.push({
+
                         variant_id: button.dataset.variantId,
+
                         image: button.dataset.colorImage,
+
                         price: Number(button.dataset.colorPrice),
+
                         stock: Number(button.dataset.colorStock),
+
                         sizes: JSON.parse(button.dataset.colorSizes || '[]'),
+
                     });
                 });
 
@@ -408,7 +436,8 @@
                                 type="button"
                                 class="btn btn-outline-secondary size-option ${idx === 0 ? 'active' : ''}"
                                 data-size-id="${size.id}"
-                                data-stock="${size.stock}">
+                                data-stock="${size.stock}"
+                                data-price="${size.price}">
                                 ${size.name}
                             </button>
                         `;
@@ -416,13 +445,22 @@
                     }).join('');
 
                     sizesContainer.innerHTML = sizeButtons;
-                    if (variant.sizes.length) {
-                            stockElement.textContent = variant.sizes[0].stock;
-                        } else {
-                            stockElement.textContent = 0;
-                        }
+                    if (variant.sizes && variant.sizes.length > 0) {
+                    stockElement.textContent = variant.sizes[0].stock;
+                } else {
+                    stockElement.textContent = variant.stock ?? 0;
+                }
                     selectedVariantInput.value = variant.variant_id;
-                    selectedSizeIdInput.value = variant.sizes.length ? variant.sizes[0].id : '';
+                    if (priceElement) {
+
+                        priceElement.innerHTML = '₹' + Number(variant.price).toFixed(2);
+
+                    }
+                    if (variant.sizes && variant.sizes.length > 0) {
+                            selectedSizeIdInput.value = variant.sizes[0].id;
+                        } else {
+                            selectedSizeIdInput.value = '';
+                        }
 
                     if (variant.sizes.length) {
                         sizesContainerWrapper.classList.remove('d-none');
@@ -450,6 +488,18 @@
                             selectedSizeIdInput.value = this.dataset.sizeId;
 
                             stockElement.textContent = this.dataset.stock;
+                            const size = variant.sizes.find(
+
+                                s => s.id == this.dataset.sizeId
+
+                            );
+
+                            if (size && priceElement) {
+
+                                priceElement.innerHTML =
+                                    '₹' + Number(size.price).toFixed(2);
+
+                            }
 
                             updateAddToCartState();
                         });
@@ -466,12 +516,15 @@
 
                     if (!inStock) {
                         addToCartButton.disabled = true;
+                        if(addToWishlistButton) addToWishlistButton.disabled = true;
                         sizeRequiredMessage.classList.add('d-none');
                     } else if (requiresSize && !hasSize) {
                         addToCartButton.disabled = true;
+                        if(addToWishlistButton) addToWishlistButton.disabled = true;
                         sizeRequiredMessage.classList.remove('d-none');
                     } else {
                         addToCartButton.disabled = false;
+                        if(addToWishlistButton) addToWishlistButton.disabled = false;
                         sizeRequiredMessage.classList.add('d-none');
                     }
                 }

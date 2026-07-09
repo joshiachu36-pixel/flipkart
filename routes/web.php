@@ -63,6 +63,11 @@ Route::post(
     [ProductVariantController::class, 'store']
 )->name('products.variants.store');
 
+Route::delete(
+    '/products/{product}/variants/{variant}',
+    [ProductVariantController::class, 'destroy']
+)->name('products.variants.destroy');
+
 Route::get('/categories',
     [CategoryController::class,'index']);
 

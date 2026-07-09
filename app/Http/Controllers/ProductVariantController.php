@@ -77,12 +77,27 @@ class ProductVariantController extends Controller
                     ->store('variant-images', 'public');
             }
 
-            $variantDataToSave = [
-                'price' => (float) ($variantData['price'] ?? 0),
-                'stock' => (int) ($variantData['stock'] ?? 0),
-                'status' => (int) ($variantData['status'] ?? 1),
-            ];
+            $defaultPrice = 0;
 
+foreach (($variantData['sizes'] ?? []) as $sizeData) {
+
+    if (isset($sizeData['selected'])) {
+
+        $defaultPrice = (float) ($sizeData['price'] ?? 0);
+
+        break;
+    }
+}
+
+            $variantDataToSave = [
+
+                'price' => $defaultPrice,
+
+                'stock' => (int) ($variantData['stock'] ?? 0),
+
+                'status' => (int) ($variantData['status'] ?? 1),
+
+            ];
             if ($imagePath !== '') {
                 $variantDataToSave['image'] = $imagePath;
             }
@@ -101,15 +116,32 @@ class ProductVariantController extends Controller
             }
 
             $syncData[$sizeId] = [
-                'stock' => (int) ($sizeData['stock'] ?? 0),
-            ];
-}
 
+                'stock' => (int) ($sizeData['stock'] ?? 0),
+
+                'price' => isset($sizeData['price'])
+                    ? (float) $sizeData['price']
+                    : null,
+
+            ];
+        }
+            
             $variant->sizes()->sync($syncData);
         }
 
         return redirect()
             ->route('products.variants', $product)
             ->with('success', 'Variants saved successfully.');
+    }
+
+    public function destroy(Product $product, ProductVariant $variant)
+    {
+        // Detach all pivot (product_variant_size) records first
+        $variant->sizes()->detach();
+
+        // Delete the variant itself
+        $variant->delete();
+
+        return response()->json(['success' => true]);
     }
 }

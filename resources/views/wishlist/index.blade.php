@@ -35,7 +35,7 @@
                         <a href="{{ url('/product-details/'.$item->product->id) }}{{ $item->collection ? '?collection='.$item->collection->slug : '' }}">
 
                             <img
-                                src="{{ asset('uploads/'.$item->product->image) }}"
+                                src="{{ $item->productVariant && $item->productVariant->image ? asset('storage/'.$item->productVariant->image) : asset('uploads/'.$item->product->image) }}"
                                 class="card-img-top"
                                 style="height:220px;object-fit:cover;">
 
@@ -57,30 +57,37 @@
 
                             </h5>
 
+                            @if($item->productVariant)
+                                <div class="small text-muted mt-2">
+                                    <strong>Color:</strong> {{ $item->productVariant->color->name }}
+                                </div>
+                            @endif
+
+                            @if($item->size)
+                                <div class="small text-muted mb-2">
+                                    <strong>Size:</strong> {{ $item->size->name }}
+                                </div>
+                            @endif
+
                             @php
-
-                                $price = $item->product->price;
-
-                                if ($item->collection) {
-
-                                    if ($item->collection->discount_type == 'percentage') {
-
-                                        $price = $price -
-                                            (($price * $item->collection->discount_value) / 100);
-
-                                    }
-
-                                    elseif ($item->collection->discount_type == 'fixed') {
-
-                                        $price = max(
-                                            0,
-                                            $price - $item->collection->discount_value
-                                        );
-
-                                    }
-
+                                if ($item->productVariant && $item->size_id) {
+                                    $sizeEntry = $item->productVariant->sizes->firstWhere('id', $item->size_id);
+                                    $price = $sizeEntry ? $sizeEntry->pivot->price : $item->productVariant->price;
+                                } elseif ($item->productVariant) {
+                                    $price = $item->productVariant->price;
+                                } else {
+                                    $price = $item->product->price;
                                 }
 
+                                $originalPrice = $price;
+
+                                if ($item->collection) {
+                                    if ($item->collection->discount_type == 'percentage') {
+                                        $price = $price - (($price * $item->collection->discount_value) / 100);
+                                    } elseif ($item->collection->discount_type == 'fixed') {
+                                        $price = max(0, $price - $item->collection->discount_value);
+                                    }
+                                }
                             @endphp
 
                             @if($item->collection)
@@ -91,7 +98,7 @@
 
                                         <del>
 
-                                            ₹{{ number_format($item->product->price,2) }}
+                                            ₹{{ number_format($originalPrice,2) }}
 
                                         </del>
 
@@ -123,7 +130,7 @@
 
                                 <h4 class="text-success fw-bold">
 
-                                    ₹{{ number_format($item->product->price,2) }}
+                                    ₹{{ number_format($price,2) }}
 
                                 </h4>
 
@@ -164,13 +171,18 @@
                                     @csrf
 
                                     @if($item->collection)
-
-                                        <input
-                                            type="hidden"
-                                            name="collection_slug"
-                                            value="{{ $item->collection->slug }}">
-
+                                        <input type="hidden" name="collection_slug" value="{{ $item->collection->slug }}">
                                     @endif
+
+                                    @if($item->productVariant)
+                                        <input type="hidden" name="product_variant_id" value="{{ $item->product_variant_id }}">
+                                    @endif
+
+                                    @if($item->size)
+                                        <input type="hidden" name="size_id" value="{{ $item->size_id }}">
+                                    @endif
+
+                                    <input type="hidden" name="quantity" value="1">
 
                                     <button
                                         type="submit"
