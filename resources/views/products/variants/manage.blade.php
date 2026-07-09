@@ -40,8 +40,6 @@
 
                                 <th width="12%">Price (₹)</th>
 
-                                <th width="12%">Stock</th>
-
                                 <th width="20%">Size</th>
 
                                 <th width="20%">Variant Image</th>
@@ -89,36 +87,45 @@
 
                                 <td>
 
-                                    <input
-                                        type="number"
-                                        class="form-control"
-                                        name="variants[{{ $index }}][stock]"
-                                        value="{{ $variant->stock }}"
-                                        min="0"
-                                        placeholder="0">
+                                    <div class="border rounded p-2">
 
-                                </td>
+                                    @foreach($sizes as $size)
 
-                                <td>
+                                        @php
+                                            $selectedSize = $variant->sizes->firstWhere('id', $size->id);
+                                        @endphp
 
-                                    <select
-                                        class="form-select"
-                                        name="variants[{{ $index }}][size_ids][]"
-                                        multiple>
+                                        <div class="d-flex align-items-center mb-2">
 
-                                        <option value="">-- Select Size --</option>
+                                            <div class="form-check me-2">
 
-                                        @foreach($sizes as $size)
+                                                <input
+                                                    class="form-check-input"
+                                                    type="checkbox"
+                                                    name="variants[{{ $index }}][sizes][{{ $size->id }}][selected]"
+                                                    value="1"
+                                                    {{ $selectedSize ? 'checked' : '' }}>
 
-                                            <option value="{{ $size->id }}"
-                                                {{ $variant->sizes->contains($size->id) ? 'selected' : '' }}>
+                                            </div>
+
+                                            <div style="width:60px;">
                                                 {{ $size->name }}
-                                            </option>
+                                            </div>
 
-                                        @endforeach
+                                            <input
+                                                type="number"
+                                                class="form-control"
+                                                style="width:120px;"
+                                                name="variants[{{ $index }}][sizes][{{ $size->id }}][stock]"
+                                                value="{{ $selectedSize ? $selectedSize->pivot->stock : 0 }}"
+                                                min="0"
+                                                placeholder="Stock">
 
-                                    </select>
+                                        </div>
 
+                                    @endforeach
+
+                                    </div>
                                 </td>
 
                                 <td>

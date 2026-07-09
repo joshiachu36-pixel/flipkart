@@ -11,6 +11,7 @@ use App\Http\Controllers\CustomerAuthController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\WishlistController;
 use App\Http\Controllers\BrandController;
+use App\Http\Controllers\SizeController;
 use App\Models\Product;
 
 Route::get('test', function () {
@@ -189,3 +190,5 @@ Route::get('/variant-test', function () {
         ])
     ]);
 });
+
+Route::resource('sizes', SizeController::class);

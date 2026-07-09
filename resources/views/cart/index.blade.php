@@ -31,7 +31,9 @@
 
             @php
 
-                $price = $item->product->price;
+                $price = $item->productVariant
+                ? $item->productVariant->price
+                : $item->product->price;
 
                 if($item->collection)
                 {
@@ -60,10 +62,12 @@
                     <div class="col-md-3 text-center p-3">
 
                         <img
-                            src="{{ asset('uploads/'.$item->product->image) }}"
-                            alt="{{ $item->product->name }}"
-                            class="img-fluid"
-                            style="height:180px;object-fit:contain;">
+                        src="{{ $item->productVariant && $item->productVariant->image
+                                ? asset('storage/'.$item->productVariant->image)
+                                : asset('uploads/'.$item->product->image) }}"
+                        alt="{{ $item->product->name }}"
+                        class="img-fluid"
+                        style="height:180px;object-fit:contain;">
 
                     </div>
 
@@ -79,32 +83,73 @@
 
                             </h4>
 
+                            @if($item->productVariant)
+
+                                <div class="small text-muted mt-2">
+
+                                    <strong>Color:</strong>
+                                    {{ $item->productVariant->color->name }}
+
+                                </div>
+
+                            @endif
+
+                            @if($item->size)
+
+                                <div class="small text-muted mb-2">
+
+                                    <strong>Size:</strong>
+                                    {{ $item->size->name }}
+
+                                </div>
+
+                            @endif
+
                             <p class="text-muted mb-1">
 
-                                In Stock :
-                                {{ $item->product->stock }}
+                                <strong>In Stock :</strong>
+
+                                @if($item->size && $item->productVariant)
+
+                                    {{ $item->productVariant->sizes
+                                        ->firstWhere('id', $item->size_id)?->pivot?->stock ?? 0 }}
+
+                                @elseif($item->productVariant)
+
+                                    {{ $item->productVariant->stock }}
+
+                                @else
+
+                                    {{ $item->product->stock }}
+
+                                @endif
 
                             </p>
 
                             @if($item->collection)
 
-    <div class="mb-3">
+                                    <div class="mb-3">
 
-        <span class="text-muted text-decoration-line-through">
+                                        <span class="text-muted text-decoration-line-through">
 
-            ₹{{ number_format($item->product->price,2) }}
+                                            ₹{{ number_format(
+                                                $item->productVariant
+                                                    ? $item->productVariant->price
+                                                    : $item->product->price,
+                                                2
+                                            ) }}
 
-        </span>
+                                        </span>
 
-        <br>
+                                        <br>
 
-        <h5 class="text-success fw-bold">
+                                        <h5 class="text-success fw-bold">
 
-            ₹{{ number_format($price,2) }}
+                                            ₹{{ number_format($price,2) }}
 
-        </h5>
+                                        </h5>
 
-        <span class="badge bg-danger">
+                                        <span class="badge bg-danger">
 
                                         @if($item->collection->discount_type == 'percentage')
 
@@ -124,7 +169,12 @@
 
                                 <h5 class="text-success fw-bold mb-3">
 
-                                    ₹{{ number_format($item->product->price,2) }}
+                                   ₹{{ number_format(
+    $item->productVariant
+        ? $item->productVariant->price
+        : $item->product->price,
+    2
+) }}
 
                                 </h5>
 

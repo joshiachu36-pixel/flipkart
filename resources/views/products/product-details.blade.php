@@ -144,15 +144,28 @@
 
     $variants = $product->variants()->where('status', 1)->with('color', 'sizes')->get();
     $colors = $variants->map(function ($variant) {
-        return [
-            'variant_id' => $variant->id,
-            'color_id' => $variant->color->id,
-            'name' => $variant->color->name,
-            'image' => $variant->image,
-            'stock' => $variant->stock,
-            'sizes' => $variant->sizes->map(fn($size) => ['id' => $size->id, 'name' => $size->name])->toArray(),
-        ];
-    });
+    return [
+        'variant_id' => $variant->id,
+        'color_id'   => $variant->color->id,
+        'name'       => $variant->color->name,
+        'image'      => $variant->image,
+
+        // ADD THIS
+        'price'      => $variant->price,
+
+        'stock'      => $variant->stock,
+
+        'sizes' => $variant->sizes->map(function ($size) {
+            return [
+                'id'    => $size->id,
+                'name'  => $size->name,
+                'stock' => $size->pivot->stock,
+            ];
+        })->toArray(),
+    ];
+});
+
+
 @endphp
 
 <div class="mb-4">
@@ -191,9 +204,11 @@
 
     @else
 
-        <h2 class="text-success fw-bold mb-1">
+        <h2
+            class="text-success fw-bold mb-1"
+            id="product-price">
 
-            ₹{{ number_format($product->price, 2) }}
+            ₹{{ number_format($colors->first()['price'] ?? $product->price, 2) }}
 
         </h2>
 
@@ -246,6 +261,7 @@
                                 data-variant-id="{{ $color['variant_id'] }}"
                                 data-color-index="{{ $index }}"
                                 data-color-image="{{ $color['image'] }}"
+                                data-color-price="{{ $color['price'] }}"
                                 data-color-stock="{{ $color['stock'] }}"
                                 data-color-sizes='@json($color['sizes'])'>
                                 {{ $color['name'] }}
@@ -353,6 +369,7 @@
                 const sizesContainer = document.getElementById('product-sizes');
                 const sizesContainerWrapper = document.getElementById('product-sizes-container');
                 const sizeRequiredMessage = document.getElementById('size-required-message');
+                const priceElement = document.getElementById('product-price');
                 const stockElement = document.getElementById('product-variant-stock');
                 const selectedSizeIdInput = document.getElementById('selected-size-id');
                 const selectedVariantInput = document.getElementById('selected-product-variant-id');
@@ -372,6 +389,7 @@
                     variants.push({
                         variant_id: button.dataset.variantId,
                         image: button.dataset.colorImage,
+                        price: Number(button.dataset.colorPrice),
                         stock: Number(button.dataset.colorStock),
                         sizes: JSON.parse(button.dataset.colorSizes || '[]'),
                     });
@@ -382,12 +400,27 @@
                     colorButtons[index].classList.add('active');
 
                     const variant = variants[index];
+                    priceElement.textContent = '₹' + Number(variant.price).toFixed(2);
                     const sizeButtons = variant.sizes.map((size, idx) => {
-                        return `<button type="button" class="btn btn-outline-secondary size-option ${idx === 0 ? 'active' : ''}" data-size-id="${size.id}">${size.name}</button>`;
+
+                        return `
+                            <button
+                                type="button"
+                                class="btn btn-outline-secondary size-option ${idx === 0 ? 'active' : ''}"
+                                data-size-id="${size.id}"
+                                data-stock="${size.stock}">
+                                ${size.name}
+                            </button>
+                        `;
+
                     }).join('');
 
                     sizesContainer.innerHTML = sizeButtons;
-                    stockElement.textContent = variant.stock;
+                    if (variant.sizes.length) {
+                            stockElement.textContent = variant.sizes[0].stock;
+                        } else {
+                            stockElement.textContent = 0;
+                        }
                     selectedVariantInput.value = variant.variant_id;
                     selectedSizeIdInput.value = variant.sizes.length ? variant.sizes[0].id : '';
 
@@ -402,7 +435,7 @@
                     if (imageElement) {
                         if (variant.image) {
                             console.log("Variant object:", variant);
-console.log("Variant image:", variant.image);
+                                console.log("Variant image:", variant.image);
                             imageElement.src = `{{ asset('storage') }}/${variant.image}`;
                         } else {
                             imageElement.src = "{{ asset('uploads/' . $product->image) }}";
@@ -415,6 +448,9 @@ console.log("Variant image:", variant.image);
                             document.querySelectorAll('.size-option').forEach(b => b.classList.remove('active'));
                             this.classList.add('active');
                             selectedSizeIdInput.value = this.dataset.sizeId;
+
+                            stockElement.textContent = this.dataset.stock;
+
                             updateAddToCartState();
                         });
                     });

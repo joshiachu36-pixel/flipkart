@@ -25,8 +25,15 @@ class ProductVariant extends Model
         return $this->belongsTo(Color::class);
     }
 
-    public function sizes()
-    {
-        return $this->belongsToMany(Size::class, 'product_variant_size');
-    }
+   public function sizes()
+{
+    return $this->belongsToMany(
+        Size::class,
+        'product_variant_size',
+        'product_variant_id',
+        'size_id'
+    )
+    ->withPivot('stock')
+    ->withTimestamps();
+}
 }

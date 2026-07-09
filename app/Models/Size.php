@@ -11,10 +11,17 @@ class Size extends Model
         'status',
     ];
 
-    public function productVariants()
-    {
-        return $this->belongsToMany(ProductVariant::class, 'product_variant_size');
-    }
+   public function productVariants()
+{
+    return $this->belongsToMany(
+        ProductVariant::class,
+        'product_variant_size',
+        'size_id',
+        'product_variant_id'
+    )
+    ->withPivot('stock')
+    ->withTimestamps();
+}
 
     public function carts()
     {

@@ -21,7 +21,7 @@ class ProductVariantController extends Controller
 
         $sizes = Size::orderBy('name')
             ->get();
-
+        
         return view(
             'products.variants.manage',
             compact(
@@ -60,6 +60,7 @@ class ProductVariantController extends Controller
 
     public function store(Request $request, Product $product)
     {
+        
         $variants = $request->input('variants', []);
 
         foreach ($variants as $index => $variantData) {
@@ -91,12 +92,20 @@ class ProductVariantController extends Controller
                 $variantDataToSave
             );
 
-            $sizeIds = array_filter(
-                (array) ($variantData['size_ids'] ?? []),
-                fn ($id) => $id !== null && $id !== ''
-            );
+            $syncData = [];
 
-            $variant->sizes()->sync($sizeIds);
+        foreach (($variantData['sizes'] ?? []) as $sizeId => $sizeData) {
+
+            if (!isset($sizeData['selected'])) {
+                continue;
+            }
+
+            $syncData[$sizeId] = [
+                'stock' => (int) ($sizeData['stock'] ?? 0),
+            ];
+}
+
+            $variant->sizes()->sync($syncData);
         }
 
         return redirect()

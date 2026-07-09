@@ -428,11 +428,12 @@ public function categoryProducts($id)
 
 public function productDetails(Request $request, $id)
 {
-        $product = Product::with(
-                'category.parent.parent.parent',
-                'collections'
-            )
-            ->findOrFail($id);
+        $product = Product::with([
+            'category.parent.parent.parent',
+            'collections',
+            'variants.color',
+            'variants.sizes'
+        ])->findOrFail($id);
 
         $collection = null;
 
@@ -453,6 +454,8 @@ public function productDetails(Request $request, $id)
             ->latest()
             ->take(4)
             ->get();
+
+            
 
         return view(
     'products.product-details',
