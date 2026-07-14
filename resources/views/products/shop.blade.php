@@ -60,7 +60,7 @@
                     <a href="{{ url('/product-details/'.$product->id) }}{{ isset($collection) ? '?collection='.$collection->slug : '' }}">
 
                         <img
-                            src="{{ asset('uploads/'.$product->image) }}"
+                            src="{{ $product->seller_id ? asset('storage/'.$product->image) : asset('uploads/'.$product->image) }}"
                             class="card-img-top"
                             style="height:220px;object-fit:cover;"
                         >

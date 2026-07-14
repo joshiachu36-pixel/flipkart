@@ -1,4 +1,4 @@
-@extends('layout.admin')
+@extends('layout.seller')
 
 @section('content')
 
@@ -14,7 +14,7 @@
 
         </div>
 
-        <a href="/products" class="btn btn-secondary">Back</a>
+        <a href="{{ route('seller.products.index') }}" class="btn btn-secondary">Back</a>
 
     </div>
 
@@ -22,7 +22,7 @@
 
         <div class="card-body">
 
-            <form action="{{ route('products.variants.store', optional($product)->id) }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ route('seller.products.variants.store', optional($product)->id) }}" method="POST" enctype="multipart/form-data">
 
                 @csrf
 

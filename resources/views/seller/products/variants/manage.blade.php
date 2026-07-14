@@ -1,4 +1,4 @@
-@extends('layout.admin')
+@extends('layout.seller')
 
 @section('content')
 
@@ -19,8 +19,11 @@
             <button type="button" id="btn-add-color" class="btn btn-success">
                 <i class="bi bi-plus-circle"></i> Add Color
             </button>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSizeModal">
+                <i class="bi bi-plus-circle"></i> Add Size
+            </button>
 
-            <a href="/products" class="btn btn-secondary">Back to Products</a>
+            <a href="{{ route('seller.products.index') }}" class="btn btn-secondary">Back to Products</a>
 
         </div>
 
@@ -36,7 +39,7 @@
 
         <div class="card-body">
 
-            <form action="{{ route('products.variants.store', $product->id) }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ route('seller.products.variants.store', $product->id) }}" method="POST" enctype="multipart/form-data">
 
                 @csrf
 
@@ -183,7 +186,7 @@
                                         type="button"
                                         class="btn btn-danger btn-sm btn-delete-variant"
                                         data-variant-id="{{ $variant->id }}"
-                                        data-delete-url="{{ route('products.variants.destroy', [$product->id, $variant->id]) }}"
+                                        data-delete-url="{{ route('seller.products.variants.destroy', [$product->id, $variant->id]) }}"
                                         data-color-name="{{ $variant->color->name ?? 'this color' }}">
                                         <i class="bi bi-trash"></i> Delete
                                     </button>
@@ -310,6 +313,32 @@
 
     </tr>
 </template>
+
+<!-- Add Size Modal -->
+<div class="modal fade" id="addSizeModal" tabindex="-1" aria-labelledby="addSizeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addSizeModalLabel">Add New Size</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="add-size-form">
+                    <div class="mb-3">
+                        <label for="sizeName" class="form-label">Size Name</label>
+                        <input type="text" class="form-control" id="sizeName" name="name" required>
+                    </div>
+                    <input type="hidden" name="status" value="1">
+                    <div id="size-error" class="text-danger mb-2 d-none"></div>
+                    <div class="text-end">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="btn-save-size">Save Size</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 
 {{-- Pass PHP data to JS --}}
 <script>
@@ -467,6 +496,136 @@ document.addEventListener('DOMContentLoaded', function () {
                 opt.hidden = EXISTING_USED.includes(id) && id !== parseInt(currentVal);
             });
         });
+    }
+
+    // ── 6. Add Size via AJAX ──────────────────────────────────────────────
+    document.getElementById('add-size-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const form = e.target;
+        const submitBtn = document.getElementById('btn-save-size');
+        const errorDiv = document.getElementById('size-error');
+        
+        submitBtn.disabled = true;
+        errorDiv.classList.add('d-none');
+        errorDiv.innerText = '';
+
+        const formData = new FormData(form);
+
+        fetch('{{ route("sizes.store") }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': CSRF_TOKEN,
+                'Accept': 'application/json',
+            },
+            body: formData
+        })
+        .then(res => res.json().then(data => ({ status: res.status, ok: res.ok, body: data })))
+        .then(res => {
+            if (!res.ok) {
+                if (res.status === 422) {
+                    throw new Error(res.body.errors ? Object.values(res.body.errors)[0][0] : res.body.message);
+                } else {
+                    throw new Error(res.body.message || 'Error occurred');
+                }
+            }
+            return res.body;
+        })
+        .then(data => {
+            if (data.success && data.size) {
+                const newSize = data.size;
+                SIZES_DATA.push(newSize);
+
+                // Add to existing rows
+                document.querySelectorAll('#variants-tbody tr').forEach(function(tr) {
+                    const sizesContainer = tr.querySelector('.border.rounded.p-2');
+                    let prefix = '';
+                    
+                    const hiddenColorInput = tr.querySelector('input[name*="[color_id]"]');
+                    if (hiddenColorInput) {
+                        const match = hiddenColorInput.name.match(/variants\[\d+\]/);
+                        if (match) {
+                            prefix = match[0];
+                        }
+                    }
+
+                    if (prefix) {
+                        appendSizeToContainer(sizesContainer, newSize, prefix, false);
+                    }
+                });
+
+                // Add to template
+                const template = document.getElementById('new-color-row-template');
+                const templateSizesContainer = template.content.querySelector('.border.rounded.p-2');
+                appendSizeToContainer(templateSizesContainer, newSize, null, true);
+
+                // Close modal
+                const modalEl = document.getElementById('addSizeModal');
+                const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                modalInstance.hide();
+
+                // Reset form
+                form.reset();
+            }
+        })
+        .catch(err => {
+            errorDiv.innerText = err.message;
+            errorDiv.classList.remove('d-none');
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+        });
+    });
+
+    function appendSizeToContainer(container, size, prefix, isTemplate = false) {
+        let nameCheckbox, nameStock, namePrice;
+        if (isTemplate) {
+            nameCheckbox = `__SIZE_SELECTED_${size.id}__`;
+            nameStock = `__SIZE_STOCK_${size.id}__`;
+            namePrice = `__SIZE_PRICE_${size.id}__`;
+        } else {
+            nameCheckbox = `${prefix}[sizes][${size.id}][selected]`;
+            nameStock = `${prefix}[sizes][${size.id}][stock]`;
+            namePrice = `${prefix}[sizes][${size.id}][price]`;
+        }
+
+        const sizeHtml = `
+            <div class="d-flex align-items-start mb-3">
+                <div class="form-check me-2 mt-1">
+                    <input class="form-check-input size-checkbox" type="checkbox" name="${nameCheckbox}" value="1">
+                </div>
+                <div class="flex-grow-1">
+                    <div class="fw-semibold mb-1">${size.name}</div>
+                    <div class="d-flex gap-2">
+                        <input type="number" class="form-control form-control-sm size-stock" name="${nameStock}" value="0" min="0" placeholder="Stock" disabled>
+                        <input type="number" step="0.01" class="form-control form-control-sm size-price" name="${namePrice}" value="" min="0" placeholder="Price (₹)" disabled>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = sizeHtml.trim();
+        const newElement = tempDiv.firstChild;
+        
+        container.appendChild(newElement);
+
+        if (!isTemplate) {
+            const checkbox = newElement.querySelector('.size-checkbox');
+            const priceInput = newElement.querySelector('.size-price');
+            const stockInput = newElement.querySelector('.size-stock');
+            
+            checkbox.addEventListener('change', function() {
+                if (checkbox.checked) {
+                    priceInput.disabled = false;
+                    stockInput.disabled = false;
+                } else {
+                    priceInput.disabled = true;
+                    stockInput.disabled = true;
+                    priceInput.value = '';
+                    stockInput.value = 0;
+                }
+            });
+        }
     }
 
 });

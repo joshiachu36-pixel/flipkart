@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\Wishlist;
 use App\Models\Collection;
+use App\Models\ProductAnalytics;
 
 class WishlistController extends Controller
 {
@@ -83,6 +84,8 @@ class WishlistController extends Controller
 
         if ($wishlist) {
             $wishlist->delete();
+            // Analytics: decrement wishlist_count when toggled off
+            ProductAnalytics::recordFor($product->id)->decrementWishlist();
             return back();
         }
 
@@ -93,6 +96,9 @@ class WishlistController extends Controller
             'product_variant_id' => $variantId,
             'size_id' => $sizeId,
         ]);
+
+        // Analytics: increment wishlist_count when toggled on
+        ProductAnalytics::recordFor($product->id)->incrementWishlist();
 
         return back();
     }
@@ -124,6 +130,9 @@ class WishlistController extends Controller
         if ($wishlist->customer_id != session('customer_id')) {
             abort(403);
         }
+
+        // Analytics: decrement wishlist_count when a wishlist item is removed directly
+        ProductAnalytics::recordFor($wishlist->product_id)->decrementWishlist();
 
         $wishlist->delete();
 

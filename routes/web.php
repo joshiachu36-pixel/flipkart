@@ -48,25 +48,7 @@ Route::get('/product/{id}', [ProductController::class, 'show']);
 Route::get('/search', [ProductController::class, 'search'])
         ->name('product.search');
 
-Route::get(
-    '/products/{product}/variants',
-    [ProductVariantController::class, 'index']
-)->name('products.variants');
 
-Route::get(
-    '/products/{product}/variants/manage',
-    [ProductVariantController::class, 'manage']
-)->name('products.variants.manage');
-
-Route::post(
-    '/products/{product}/variants',
-    [ProductVariantController::class, 'store']
-)->name('products.variants.store');
-
-Route::delete(
-    '/products/{product}/variants/{variant}',
-    [ProductVariantController::class, 'destroy']
-)->name('products.variants.destroy');
 
 Route::get('/categories',
     [CategoryController::class,'index']);
@@ -197,3 +179,58 @@ Route::get('/variant-test', function () {
 });
 
 Route::resource('sizes', SizeController::class);
+
+use App\Http\Controllers\SellerAuthController;
+use App\Http\Controllers\SellerDashboardController;
+use App\Http\Controllers\SellerProductController;
+use App\Http\Controllers\SellerReportController;
+use App\Http\Controllers\AdminSellerController;
+use App\Http\Controllers\AdminProductController;
+use App\Http\Controllers\AdminAuthController;
+use App\Http\Controllers\AdminReportController;
+
+// --- Seller Auth Routes ---
+Route::prefix('seller')->name('seller.')->group(function () {
+    Route::get('/register', [SellerAuthController::class, 'showRegister'])->name('register');
+    Route::post('/register', [SellerAuthController::class, 'register'])->name('register.store');
+    Route::get('/login', [SellerAuthController::class, 'showLogin'])->name('login');
+    Route::post('/login', [SellerAuthController::class, 'login'])->name('login.store');
+});
+
+// --- Seller Protected Routes ---
+Route::prefix('seller')->name('seller.')->middleware(['seller'])->group(function () {
+    Route::get('/dashboard', [SellerDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/reports', [SellerReportController::class, 'index'])->name('reports.index');
+    Route::post('/logout', [SellerAuthController::class, 'logout'])->name('logout');
+
+    
+    // Seller Products (destroy is included — seller can delete their own products)
+    Route::resource('products', SellerProductController::class)->except(['show']);
+
+    // Seller Product Variants
+    Route::get('/products/{product}/variants', [\App\Http\Controllers\SellerProductVariantController::class, 'index'])->name('products.variants');
+    Route::get('/products/{product}/variants/manage', [\App\Http\Controllers\SellerProductVariantController::class, 'manage'])->name('products.variants.manage');
+    Route::post('/products/{product}/variants', [\App\Http\Controllers\SellerProductVariantController::class, 'store'])->name('products.variants.store');
+    Route::delete('/products/{product}/variants/{variant}', [\App\Http\Controllers\SellerProductVariantController::class, 'destroy'])->name('products.variants.destroy');
+});
+
+// --- Admin Auth Routes ---
+Route::prefix('admin')->name('admin.')->group(function () {
+    Route::get('/login', [AdminAuthController::class, 'showLogin'])->name('login');
+    Route::post('/login', [AdminAuthController::class, 'login'])->name('login.store');
+    Route::post('/logout', [AdminAuthController::class, 'logout'])->name('logout');
+});
+
+// --- Admin Marketplace Routes ---
+Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/sellers', [AdminSellerController::class, 'index'])->name('sellers.index');
+    Route::post('/sellers/{seller}/update-status', [AdminSellerController::class, 'updateStatus'])->name('sellers.update');
+
+    // Product Approval — full index + legacy pending redirect
+    Route::get('/products', [AdminProductController::class, 'index'])->name('products.index');
+    Route::get('/products/pending', [AdminProductController::class, 'pending'])->name('products.pending');
+    Route::post('/products/{product}/update-status', [AdminProductController::class, 'updateStatus'])->name('products.update');
+
+    Route::get('/reports', [AdminReportController::class, 'index'])->name('reports.index');
+});
+

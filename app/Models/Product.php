@@ -9,7 +9,7 @@ use App\Models\Brand;
 
 class Product extends Model
 {
-       protected $fillable = [
+    protected $fillable = [
         'category_id',
         'brand_id',
         'name',
@@ -18,7 +18,15 @@ class Product extends Model
         'original_price',
         'stock',
         'status',
-        'image'
+        'image',
+        'seller_id',
+        'approval_status',
+        'approved_by',
+        'approved_at',
+    ];
+
+    protected $casts = [
+        'approved_at' => 'datetime',
     ];
 
     public function category()
@@ -66,5 +74,10 @@ public function wishlists()
 public function variants()
 {
     return $this->hasMany(ProductVariant::class);
+}
+
+public function seller()
+{
+    return $this->belongsTo(Seller::class);
 }
 }

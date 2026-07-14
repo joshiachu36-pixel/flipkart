@@ -84,7 +84,7 @@
 
                 <img
                     id="product-detail-image"
-                    src="{{ asset('uploads/' . $product->image) }}"
+                    src="{{ $product->seller_id ? asset('storage/' . $product->image) : asset('uploads/' . $product->image) }}"
                     class="img-fluid"
                     alt="{{ $product->name }}"
                     style="height:500px; object-fit:cover;">
@@ -476,7 +476,7 @@
                                 console.log("Variant image:", variant.image);
                             imageElement.src = `{{ asset('storage') }}/${variant.image}`;
                         } else {
-                            imageElement.src = "{{ asset('uploads/' . $product->image) }}";
+                            imageElement.src = "{{ $product->seller_id ? asset('storage/' . $product->image) : asset('uploads/' . $product->image) }}";
                         }
                     }
 

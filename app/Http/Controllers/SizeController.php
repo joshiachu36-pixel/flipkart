@@ -26,10 +26,17 @@ class SizeController extends Controller
             'status' => 'required|boolean',
         ]);
 
-        Size::create([
+        $size = Size::create([
             'name' => strtoupper($request->name),
             'status' => $request->status,
         ]);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'size' => $size,
+            ]);
+        }
 
         return redirect()
             ->route('sizes.index')

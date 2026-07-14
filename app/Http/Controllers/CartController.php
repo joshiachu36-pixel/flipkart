@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Cart;
 use App\Models\Product;
 use App\Models\Collection;
+use App\Models\ProductAnalytics;
 
 class CartController extends Controller
 {
@@ -36,10 +37,19 @@ class CartController extends Controller
             ]);
             $variantId = $request->input('product_variant_id');
             $sizeId = $request->input('size_id');
+            
+            $variant = \App\Models\ProductVariant::with('sizes')->find($variantId);
+            $sizePivot = $variant->sizes->firstWhere('id', $sizeId);
+            if (!$sizePivot || $sizePivot->pivot->stock < $request->input('quantity', 1)) {
+                return back()->with('error', 'Selected size is out of stock or requested quantity exceeds available stock.');
+            }
         } else {
             $request->validate([
                 'quantity' => 'required|integer|min:1',
             ]);
+            if ($product->stock < $request->input('quantity', 1)) {
+                return back()->with('error', 'Requested quantity exceeds available stock.');
+            }
         }
 
         $cart = Cart::where('customer_id', $customerId)
@@ -63,6 +73,9 @@ class CartController extends Controller
             'size_id'           => $sizeId,
             'quantity'          => $request->input('quantity', 1),
         ]);
+
+            // Analytics: increment cart_count only when a NEW cart entry is created
+            ProductAnalytics::recordFor($product->id)->incrementCart();
 
         }
 
@@ -149,6 +162,9 @@ foreach ($cartItems as $item) {
 
     public function remove(Cart $cart)
     {
+        // Analytics: decrement cart_count when a cart item is removed
+        ProductAnalytics::recordFor($cart->product_id)->decrementCart();
+
         $cart->delete();
 
         return back()->with(

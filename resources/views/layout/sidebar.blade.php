@@ -86,6 +86,32 @@
                   </ul>
               </li>
               <li class="nav-item">
+                <a href="{{ route('admin.sellers.index') }}" class="nav-link">
+                  <i class="nav-icon bi bi-person-check-fill"></i>
+                  <p>Seller Approval</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="{{ route('admin.products.index') }}" class="nav-link">
+                  <i class="nav-icon bi bi-patch-check-fill"></i>
+                  <p>
+                    Product Approval
+                    @php
+                        $pendingProductCount = \App\Models\Product::whereNotNull('seller_id')->where('approval_status','Pending')->count();
+                    @endphp
+                    @if($pendingProductCount > 0)
+                        <span class="badge bg-warning text-dark float-end me-3">{{ $pendingProductCount }}</span>
+                    @endif
+                  </p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="{{ route('admin.reports.index') }}" class="nav-link">
+                  <i class="nav-icon bi bi-bar-chart-fill"></i>
+                  <p>Reports</p>
+                </a>
+              </li>
+              <li class="nav-item">
                 <a href="#" class="nav-link">
                   <i class="nav-icon bi bi-box-seam-fill"></i>
                   <p>

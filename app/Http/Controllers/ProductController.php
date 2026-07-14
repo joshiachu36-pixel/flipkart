@@ -281,7 +281,10 @@ public function shop()
     ->with('childrenRecursive')
     ->get();
 
-    $products = Product::latest()->get();
+    $products = Product::where(function($q) {
+        $q->where('approval_status', 'Approved')
+          ->orWhereNull('seller_id');
+    })->latest()->get();
     $category = null;
     $collection = null;
     $selectedCollection = null;
@@ -319,6 +322,10 @@ public function collectionProducts($slug)
         ->firstOrFail();
 
     $products = $collection->products()
+        ->where(function($q) {
+            $q->where('approval_status', 'Approved')
+              ->orWhereNull('seller_id');
+        })
         ->latest()
         ->get();
 
@@ -359,7 +366,10 @@ public function search(Request $request)
 {
     $search = trim((string) $request->input('search', ''));
 
-    $productsQuery = Product::query()->latest();
+    $productsQuery = Product::query()->where(function($q) {
+        $q->where('approval_status', 'Approved')
+          ->orWhereNull('seller_id');
+    })->latest();
 
     if ($search !== '') {
         $productsQuery->where('name', 'LIKE', "%{$search}%");
@@ -405,7 +415,10 @@ public function categoryProducts($id)
     $products = Product::whereIn(
                     'category_id',
                     $categoryIds
-                )->get();
+                )->where(function($q) {
+                    $q->where('approval_status', 'Approved')
+                      ->orWhereNull('seller_id');
+                })->get();
 
     $rootCategory = Category::with('childrenRecursive')
         ->find($category->getRootCategory()->id);
@@ -451,6 +464,10 @@ public function productDetails(Request $request, $id)
         $relatedProducts = Product::where(
         'category_id',$product->category_id)
             ->where('id', '!=', $product->id)
+            ->where(function ($q) {
+                $q->where('approval_status', 'Approved')
+                  ->orWhereNull('seller_id');
+            })
             ->latest()
             ->take(4)
             ->get();
