@@ -12,6 +12,7 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\WishlistController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\SizeController;
+use App\Http\Controllers\StoreController;
 use App\Models\Product;
 
 Route::get('test', function () {
@@ -167,6 +168,10 @@ Route::middleware('customer')->group(function () {
 
 Route::get('/shop/collection/{slug}', [ProductController::class, 'collectionProducts'])
     ->name('shop.collection');
+
+// ── Seller Store Page ──────────────────────────────────────────────────────
+Route::get('/shop/store/{seller}', [StoreController::class, 'show'])
+    ->name('store.show');
 
 Route::get('/variant-test', function () {
     return view('products.variants.index', [

@@ -20,21 +20,19 @@ class SellerProductController extends Controller
     public function create()
     {
         $categories = Category::all();
-        $brands = Brand::all();
-        return view('seller.products.create', compact('categories', 'brands'));
+        return view('seller.products.create', compact('categories'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'required|string',
-            'price' => 'required|numeric',
+            'name'           => 'required|string|max:255',
+            'description'    => 'required|string',
+            'price'          => 'required|numeric',
             'original_price' => 'nullable|numeric',
-            'category_id' => 'required|exists:categories,id',
-            'brand_id' => 'nullable|exists:brands,id',
-            'stock' => 'required|integer',
-            'image' => 'nullable|image',
+            'category_id'    => 'required|exists:categories,id',
+            'stock'          => 'required|integer',
+            'image'          => 'nullable|image',
         ]);
 
         $imagePath = null;
@@ -44,16 +42,16 @@ class SellerProductController extends Controller
 
         $seller = Auth::guard('seller')->user();
         $seller->products()->create([
-            'name' => $validated['name'],
-            'description' => $validated['description'],
-            'price' => $validated['price'],
-            'original_price' => $validated['original_price'] ?? 0,
-            'category_id' => $validated['category_id'],
-            'brand_id' => $validated['brand_id'],
-            'stock' => $validated['stock'],
-            'image' => $imagePath,
+            'name'            => $validated['name'],
+            'description'     => $validated['description'],
+            'price'           => $validated['price'],
+            'original_price'  => $validated['original_price'] ?? 0,
+            'category_id'     => $validated['category_id'],
+            // brand_id intentionally omitted — seller's business IS the brand
+            'stock'           => $validated['stock'],
+            'image'           => $imagePath,
             'approval_status' => 'Pending', // Requires admin approval
-            'status' => '1',
+            'status'          => '1',
         ]);
 
         return redirect()->route('seller.products.variants', $seller->products()->latest()->first())->with('success', 'Product added successfully. Now configure its variants.');
@@ -66,8 +64,7 @@ class SellerProductController extends Controller
         }
 
         $categories = Category::all();
-        $brands = Brand::all();
-        return view('seller.products.edit', compact('product', 'categories', 'brands'));
+        return view('seller.products.edit', compact('product', 'categories'));
     }
 
     public function update(Request $request, Product $product)
@@ -77,14 +74,14 @@ class SellerProductController extends Controller
         }
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'required|string',
-            'price' => 'required|numeric',
+            'name'           => 'required|string|max:255',
+            'description'    => 'required|string',
+            'price'          => 'required|numeric',
             'original_price' => 'nullable|numeric',
-            'category_id' => 'required|exists:categories,id',
-            'brand_id' => 'nullable|exists:brands,id',
-            'stock' => 'required|integer',
-            'image' => 'nullable|image',
+            'category_id'    => 'required|exists:categories,id',
+            // brand_id intentionally omitted — seller's business IS the brand
+            'stock'          => 'required|integer',
+            'image'          => 'nullable|image',
         ]);
 
         if ($request->hasFile('image')) {

@@ -100,6 +100,33 @@
                 {{ $product->name }}
             </h2>
 
+            {{-- ── Sold By (Seller Branding) ── --}}
+            @if($product->seller_id && $product->seller)
+            <div class="d-flex align-items-center gap-3 py-2 px-3 mb-3 rounded-2"
+                 style="background:#f8f9fa;border:1px solid #e9ecef;">
+                <div style="font-size:0.78rem;color:#6c757d;white-space:nowrap;">Sold by</div>
+                <a href="{{ route('store.show', $product->seller_id) }}"
+                   class="d-flex align-items-center gap-2 text-decoration-none"
+                   title="Visit {{ $product->seller->business_name }} Store">
+                    @if($product->seller->business_logo)
+                        <img src="{{ asset('storage/' . $product->seller->business_logo) }}"
+                             alt="{{ $product->seller->business_name }}"
+                             style="width:32px;height:32px;border-radius:6px;object-fit:cover;border:1px solid #dee2e6;flex-shrink:0;">
+                    @else
+                        <span style="width:32px;height:32px;border-radius:6px;background:linear-gradient(135deg,#2874f0,#0f4fc8);display:inline-flex;align-items:center;justify-content:center;font-size:14px;color:#fff;flex-shrink:0;">
+                            <i class="bi bi-shop"></i>
+                        </span>
+                    @endif
+                    <span class="fw-semibold text-dark" style="font-size:0.92rem;">{{ $product->seller->business_name }}</span>
+                </a>
+                <a href="{{ route('store.show', $product->seller_id) }}"
+                   class="btn btn-outline-primary btn-sm ms-auto"
+                   style="font-size:0.75rem;white-space:nowrap;">
+                    <i class="bi bi-shop me-1"></i>Visit Store
+                </a>
+            </div>
+            @endif
+
             <hr>
             
             @if($product->collections->count())

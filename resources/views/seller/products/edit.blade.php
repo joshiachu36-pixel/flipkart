@@ -35,15 +35,7 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Brand</label>
-                        <select name="brand_id" class="form-select">
-                            <option value="">Select Brand</option>
-                            @foreach($brands as $brand)
-                                <option value="{{ $brand->id }}" {{ old('brand_id', $product->brand_id) == $brand->id ? 'selected' : '' }}>{{ $brand->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
+                    {{-- Brand is automatically set to the seller's own business --}}
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Selling Price</label>
                         <input type="number" step="0.01" name="price" class="form-control" value="{{ old('price', $product->price) }}" required>

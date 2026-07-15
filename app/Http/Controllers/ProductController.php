@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\Color;
 use App\Models\Collection;
 use App\Models\Brand;
+use App\Models\Seller;
 use App\Models\Wishlist;
 use Illuminate\Support\Facades\DB;
 
@@ -281,7 +282,7 @@ public function shop()
     ->with('childrenRecursive')
     ->get();
 
-    $products = Product::where(function($q) {
+    $products = Product::with('seller')->where(function($q) {
         $q->where('approval_status', 'Approved')
           ->orWhereNull('seller_id');
     })->latest()->get();
@@ -302,6 +303,15 @@ public function shop()
         ->toArray();
     }
 
+    // Fetch approved sellers who have at least one approved + active product
+    $approvedSellers = Seller::where('status', 'Approved')
+        ->whereHas('products', function ($q) {
+            $q->where('approval_status', 'Approved')
+              ->where('status', 1);
+        })
+        ->orderBy('business_name')
+        ->get();
+
     return view(
     'products.shop',
     compact(
@@ -311,7 +321,8 @@ public function shop()
     'collection',
     'selectedCollection',
     'openIds',
-    'wishlistProductIds'
+    'wishlistProductIds',
+    'approvedSellers'
 ));
 }
 
@@ -322,6 +333,7 @@ public function collectionProducts($slug)
         ->firstOrFail();
 
     $products = $collection->products()
+        ->with('seller')
         ->where(function($q) {
             $q->where('approval_status', 'Approved')
               ->orWhereNull('seller_id');
@@ -366,7 +378,7 @@ public function search(Request $request)
 {
     $search = trim((string) $request->input('search', ''));
 
-    $productsQuery = Product::query()->where(function($q) {
+    $productsQuery = Product::query()->with('seller')->where(function($q) {
         $q->where('approval_status', 'Approved')
           ->orWhereNull('seller_id');
     })->latest();
@@ -412,7 +424,7 @@ public function categoryProducts($id)
 
     $categoryIds = $category->getDescendantIds();
 
-    $products = Product::whereIn(
+    $products = Product::with('seller')->whereIn(
                     'category_id',
                     $categoryIds
                 )->where(function($q) {
@@ -445,7 +457,8 @@ public function productDetails(Request $request, $id)
             'category.parent.parent.parent',
             'collections',
             'variants.color',
-            'variants.sizes'
+            'variants.sizes',
+            'seller',
         ])->findOrFail($id);
 
         $collection = null;
