@@ -193,6 +193,7 @@ use App\Http\Controllers\AdminSellerController;
 use App\Http\Controllers\AdminProductController;
 use App\Http\Controllers\AdminAuthController;
 use App\Http\Controllers\AdminReportController;
+use App\Http\Controllers\DownloadCenterController;
 
 // --- Seller Auth Routes ---
 Route::prefix('seller')->name('seller.')->group(function () {
@@ -205,10 +206,15 @@ Route::prefix('seller')->name('seller.')->group(function () {
 // --- Seller Protected Routes ---
 Route::prefix('seller')->name('seller.')->middleware(['seller'])->group(function () {
     Route::get('/dashboard', [SellerDashboardController::class, 'index'])->name('dashboard');
+
+    // ── Seller Reports (existing + new: export PDF, download center) ──────────
     Route::get('/reports', [SellerReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/export-pdf', [SellerReportController::class, 'exportPdf'])->name('reports.export-pdf');
+    Route::get('/reports/download', [DownloadCenterController::class, 'sellerIndex'])->name('reports.download');
+    Route::get('/reports/download/generate', [DownloadCenterController::class, 'sellerDownload'])->name('reports.download-generate');
+
     Route::post('/logout', [SellerAuthController::class, 'logout'])->name('logout');
 
-    
     // Seller Products (destroy is included — seller can delete their own products)
     Route::resource('products', SellerProductController::class)->except(['show']);
 
@@ -236,6 +242,10 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
     Route::get('/products/pending', [AdminProductController::class, 'pending'])->name('products.pending');
     Route::post('/products/{product}/update-status', [AdminProductController::class, 'updateStatus'])->name('products.update');
 
+    // ── Admin Reports (existing + new: export PDF, download center) ───────────
     Route::get('/reports', [AdminReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/export-pdf', [AdminReportController::class, 'exportPdf'])->name('reports.export-pdf');
+    Route::get('/reports/download', [DownloadCenterController::class, 'adminIndex'])->name('reports.download');
+    Route::get('/reports/download/generate', [DownloadCenterController::class, 'adminDownload'])->name('reports.download-generate');
 });
 

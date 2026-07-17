@@ -5,244 +5,299 @@
     <title>{{ auth()->guard('seller')->user()->business_name ?? 'Seller Dashboard' }} | Marketplace</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
     <style>
-      /* ── Seller Sidebar ────────────────────────────────── */
-      .seller-sidebar {
+      /* ── Design Tokens ──────────────────────────────────────── */
+      :root {
+        --clr-navy:       #0f1f3d;
+        --clr-navy-mid:   #162447;
+        --clr-navy-light: #1e3a5f;
+        --clr-blue:       #2563eb;
+        --clr-blue-light: #3b82f6;
+        --clr-blue-dim:   rgba(37,99,235,0.12);
+        --clr-slate:      #1e293b;
+        --clr-text:       #334155;
+        --clr-muted:      #64748b;
+        --clr-border:     #e2e8f0;
+        --clr-bg:         #f1f5f9;
+        --clr-surface:    #ffffff;
+        --sidebar-w:      260px;
+        --radius:         10px;
+        --radius-sm:      6px;
+        --font:           'Inter', system-ui, sans-serif;
+        --shadow-sm:      0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
+        --shadow:         0 4px 16px rgba(0,0,0,0.08);
+        --shadow-md:      0 8px 32px rgba(0,0,0,0.10);
+        --transition:     all 0.2s cubic-bezier(0.4,0,0.2,1);
+      }
+
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: var(--font);
+        background: var(--clr-bg);
+        color: var(--clr-text);
+        font-size: 14px;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* ── Layout Wrapper ──────────────────────────────────────── */
+      .seller-layout {
+        display: flex;
         min-height: 100vh;
-        width: 260px;
-        background: linear-gradient(180deg, #1a1f2e 0%, #2d3545 100%);
+      }
+
+      /* ── Sidebar ─────────────────────────────────────────────── */
+      .seller-sidebar {
+        width: var(--sidebar-w);
+        background: var(--clr-navy);
         flex-shrink: 0;
         display: flex;
         flex-direction: column;
+        position: fixed;
+        top: 0; left: 0; bottom: 0;
+        z-index: 100;
+        overflow: hidden;
       }
 
-      /* Store identity block */
-      .seller-brand-block {
-        padding: 20px 16px 16px;
-        border-bottom: 1px solid rgba(255,255,255,0.08);
+      /* Brand block */
+      .sb-brand {
+        padding: 24px 20px 20px;
+        border-bottom: 1px solid rgba(255,255,255,0.07);
         display: flex;
         align-items: center;
         gap: 12px;
       }
-      .seller-logo-wrap {
-        width: 52px;
-        height: 52px;
-        border-radius: 10px;
+      .sb-logo {
+        width: 44px; height: 44px;
+        border-radius: var(--radius-sm);
         overflow: hidden;
-        background: #fff;
-        border: 2px solid rgba(255,255,255,0.15);
+        background: var(--clr-blue-dim);
+        border: 1.5px solid rgba(255,255,255,0.12);
         flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        display: flex; align-items: center; justify-content: center;
       }
-      .seller-logo-wrap img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
-      .seller-logo-placeholder {
-        width: 52px;
-        height: 52px;
-        border-radius: 10px;
-        background: linear-gradient(135deg, #2874f0, #0f4fc8);
-        border: 2px solid rgba(255,255,255,0.15);
+      .sb-logo img { width: 100%; height: 100%; object-fit: cover; }
+      .sb-logo-icon {
+        width: 44px; height: 44px;
+        border-radius: var(--radius-sm);
+        background: linear-gradient(135deg, var(--clr-blue), #1d4ed8);
+        border: 1.5px solid rgba(255,255,255,0.12);
         flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 22px;
-        color: #fff;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 20px; color: #fff;
       }
-      .seller-brand-info {
-        flex: 1;
-        min-width: 0;
+      .sb-brand-info { flex: 1; min-width: 0; }
+      .sb-brand-name {
+        font-size: 0.88rem; font-weight: 700;
+        color: #f1f5f9;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        letter-spacing: -0.01em;
       }
-      .seller-brand-name {
-        font-size: 0.92rem;
-        font-weight: 700;
-        color: #ffffff;
-        line-height: 1.2;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        margin-bottom: 2px;
-      }
-      .seller-brand-badge {
-        font-size: 0.68rem;
-        color: #a0b0c8;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
+      .sb-brand-label {
+        font-size: 0.68rem; color: #64748b;
+        text-transform: uppercase; letter-spacing: 0.8px;
+        margin-top: 2px;
       }
 
-      /* Nav links */
-      .seller-nav {
-        padding: 12px 0;
-        flex: 1;
+      /* Nav section */
+      .sb-nav { padding: 16px 0; flex: 1; overflow-y: auto; }
+      .sb-nav-section-label {
+        font-size: 0.62rem; font-weight: 600;
+        text-transform: uppercase; letter-spacing: 1.2px;
+        color: #475569; padding: 0 20px 8px;
       }
-      .seller-nav a {
-        color: #a0b0c8;
-        text-decoration: none;
+      .sb-nav a {
+        display: flex; align-items: center; gap: 11px;
         padding: 10px 20px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-size: 0.9rem;
-        transition: all 0.2s;
-        border-left: 3px solid transparent;
+        color: #94a3b8;
+        text-decoration: none;
+        font-size: 0.875rem; font-weight: 500;
+        border-left: 2px solid transparent;
+        transition: var(--transition);
+        position: relative;
       }
-      .seller-nav a:hover,
-      .seller-nav a.active {
+      .sb-nav a .nav-icon {
+        width: 32px; height: 32px;
+        border-radius: var(--radius-sm);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.95rem;
+        transition: var(--transition);
+        flex-shrink: 0;
+      }
+      .sb-nav a:hover {
+        color: #f1f5f9;
+        background: rgba(255,255,255,0.04);
+        border-left-color: rgba(37,99,235,0.4);
+      }
+      .sb-nav a:hover .nav-icon { background: rgba(37,99,235,0.2); color: var(--clr-blue-light); }
+      .sb-nav a.active {
         color: #fff;
-        background-color: rgba(255,255,255,0.06);
-        border-left-color: #2874f0;
+        background: linear-gradient(90deg, rgba(37,99,235,0.18) 0%, rgba(37,99,235,0.05) 100%);
+        border-left-color: var(--clr-blue);
       }
-      .seller-nav a i {
-        font-size: 1rem;
-        width: 18px;
-        text-align: center;
-      }
-      .seller-nav-footer {
-        padding: 16px;
-        border-top: 1px solid rgba(255,255,255,0.08);
+      .sb-nav a.active .nav-icon {
+        background: var(--clr-blue);
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(37,99,235,0.35);
       }
 
-      /* Content */
-      .content-wrapper { padding: 24px; }
+      /* Sidebar footer */
+      .sb-footer {
+        padding: 16px 20px;
+        border-top: 1px solid rgba(255,255,255,0.06);
+      }
+      .sb-logout {
+        display: flex; align-items: center; gap: 10px;
+        width: 100%; padding: 10px 14px;
+        background: rgba(239,68,68,0.08);
+        border: 1px solid rgba(239,68,68,0.2);
+        border-radius: var(--radius-sm);
+        color: #f87171; font-size: 0.84rem; font-weight: 500;
+        cursor: pointer; text-decoration: none;
+        transition: var(--transition);
+      }
+      .sb-logout:hover {
+        background: rgba(239,68,68,0.15);
+        color: #fca5a5;
+        border-color: rgba(239,68,68,0.35);
+      }
 
-      /* Top navbar */
+      /* ── Main Column ─────────────────────────────────────────── */
+      .seller-main {
+        flex: 1;
+        margin-left: var(--sidebar-w);
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+
+      /* ── Top Bar ─────────────────────────────────────────────── */
       .seller-topbar {
-        background: #ffffff;
-        border-bottom: 1px solid #e8ecf0;
-        padding: 12px 24px;
+        background: var(--clr-surface);
+        border-bottom: 1px solid var(--clr-border);
+        padding: 0 28px;
+        height: 60px;
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 14px;
+        position: sticky; top: 0; z-index: 90;
+        box-shadow: var(--shadow-sm);
       }
-      .seller-topbar-logo {
-        width: 32px;
-        height: 32px;
-        border-radius: 6px;
+      .topbar-logo-wrap {
+        width: 30px; height: 30px;
+        border-radius: var(--radius-sm);
         overflow: hidden;
-        border: 1px solid #dee2e6;
+        border: 1px solid var(--clr-border);
         flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #f8f9fa;
+        display: flex; align-items: center; justify-content: center;
+        background: var(--clr-blue-dim);
       }
-      .seller-topbar-logo img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
+      .topbar-logo-wrap img { width: 100%; height: 100%; object-fit: cover; }
+      .topbar-logo-icon {
+        width: 30px; height: 30px;
+        border-radius: var(--radius-sm);
+        background: linear-gradient(135deg, var(--clr-blue), #1d4ed8);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 13px; color: #fff; flex-shrink: 0;
       }
-      .seller-topbar-placeholder {
-        width: 32px;
-        height: 32px;
-        border-radius: 6px;
-        background: linear-gradient(135deg, #2874f0, #0f4fc8);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 14px;
-        color: #fff;
-        flex-shrink: 0;
+      .topbar-divider { width: 1px; height: 20px; background: var(--clr-border); }
+      .topbar-title { font-size: 0.875rem; color: var(--clr-muted); font-weight: 400; }
+      .topbar-title strong { color: var(--clr-slate); font-weight: 600; }
+      .topbar-breadcrumb {
+        display: flex; align-items: center; gap: 6px;
+        font-size: 0.8rem; color: var(--clr-muted);
       }
-      .seller-topbar-text {
-        font-size: 0.88rem;
-        color: #6c757d;
-      }
-      .seller-topbar-text strong {
-        color: #212529;
-        font-weight: 600;
-      }
+      .topbar-breadcrumb .sep { opacity: 0.4; }
+
+      /* ── Content Wrapper ─────────────────────────────────────── */
+      .seller-content { padding: 28px; flex: 1; }
     </style>
   </head>
   <body>
     @php $seller = auth()->guard('seller')->user(); @endphp
 
-    <div class="d-flex">
+    <div class="seller-layout">
 
       {{-- ── Sidebar ── --}}
-      <div class="seller-sidebar">
+      <aside class="seller-sidebar">
 
-        {{-- Store Identity --}}
-        <div class="seller-brand-block">
+        {{-- Brand --}}
+        <div class="sb-brand">
           @if($seller->business_logo)
-            <div class="seller-logo-wrap">
-              <img src="{{ asset('storage/' . $seller->business_logo) }}"
-                   alt="{{ $seller->business_name }}">
+            <div class="sb-logo">
+              <img src="{{ asset('storage/' . $seller->business_logo) }}" alt="{{ $seller->business_name }}">
             </div>
           @else
-            <div class="seller-logo-placeholder">
-              <i class="bi bi-shop"></i>
-            </div>
+            <div class="sb-logo-icon"><i class="bi bi-shop"></i></div>
           @endif
-
-          <div class="seller-brand-info">
-            <div class="seller-brand-name" title="{{ $seller->business_name }}">
-              {{ $seller->business_name }}
-            </div>
-            <div class="seller-brand-badge">Seller Store</div>
+          <div class="sb-brand-info">
+            <div class="sb-brand-name" title="{{ $seller->business_name }}">{{ $seller->business_name }}</div>
+            <div class="sb-brand-label">Seller Store</div>
           </div>
         </div>
 
         {{-- Navigation --}}
-        <nav class="seller-nav">
+        <nav class="sb-nav">
+          <div class="sb-nav-section-label">Main Menu</div>
           <a href="{{ route('seller.dashboard') }}"
              class="{{ request()->routeIs('seller.dashboard') ? 'active' : '' }}">
-            <i class="bi bi-speedometer2"></i> Dashboard
+            <span class="nav-icon"><i class="bi bi-speedometer2"></i></span>
+            Dashboard
           </a>
           <a href="{{ route('seller.products.index') }}"
              class="{{ request()->routeIs('seller.products.*') ? 'active' : '' }}">
-            <i class="bi bi-box"></i> My Products
+            <span class="nav-icon"><i class="bi bi-box-seam"></i></span>
+            My Products
           </a>
           <a href="{{ route('seller.reports.index') }}"
              class="{{ request()->routeIs('seller.reports.*') ? 'active' : '' }}">
-            <i class="bi bi-bar-chart-fill"></i> Reports
+            <span class="nav-icon"><i class="bi bi-bar-chart-line-fill"></i></span>
+            Analytics & Reports
           </a>
         </nav>
 
-        {{-- Logout --}}
-        <div class="seller-nav-footer">
+        {{-- Footer / Logout --}}
+        <div class="sb-footer">
           <form action="{{ route('seller.logout') }}" method="POST">
             @csrf
-            <button type="submit" class="btn btn-danger w-100 btn-sm">
-              <i class="bi bi-box-arrow-right me-1"></i> Logout
+            <button type="submit" class="sb-logout">
+              <i class="bi bi-box-arrow-right"></i> Sign Out
             </button>
           </form>
         </div>
-      </div>
+      </aside>
 
       {{-- ── Main Content ── --}}
-      <div class="flex-grow-1 bg-light">
+      <div class="seller-main">
 
-        {{-- Top Navbar --}}
-        <div class="seller-topbar">
+        {{-- Top Bar --}}
+        <header class="seller-topbar">
           @if($seller->business_logo)
-            <div class="seller-topbar-logo">
-              <img src="{{ asset('storage/' . $seller->business_logo) }}"
-                   alt="{{ $seller->business_name }}">
+            <div class="topbar-logo-wrap">
+              <img src="{{ asset('storage/' . $seller->business_logo) }}" alt="{{ $seller->business_name }}">
             </div>
           @else
-            <div class="seller-topbar-placeholder">
-              <i class="bi bi-shop"></i>
-            </div>
+            <div class="topbar-logo-icon"><i class="bi bi-shop"></i></div>
           @endif
-          <div class="seller-topbar-text">
+          <div class="topbar-divider"></div>
+          <div class="topbar-title">
             <strong>{{ $seller->business_name }}</strong>
-            &nbsp;·&nbsp; Seller Dashboard
+            <span>&nbsp;·&nbsp; Seller Dashboard</span>
           </div>
-        </div>
+        </header>
 
-        {{-- Content --}}
-        <div class="content-wrapper">
+        {{-- Page Content --}}
+        <main class="seller-content">
           @yield('content')
-        </div>
+        </main>
       </div>
+
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

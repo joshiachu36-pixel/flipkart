@@ -6,112 +6,82 @@ use Illuminate\Http\Request;
 use App\Models\ProductAnalytics;
 use App\Models\Seller;
 use App\Models\Category;
+use App\Models\Brand;
 use App\Models\Product;
+use App\Services\ReportService;
 
 class AdminReportController extends Controller
 {
-    public function index()
+    protected ReportService $reportService;
+
+    public function __construct(ReportService $reportService)
     {
-        // ── All analytics with eager-loaded relations ──────────────────────────
-        $analytics = ProductAnalytics::with([
-            'product.category',
-            'product.seller',
-        ])->get();
+        $this->reportService = $reportService;
+    }
 
-        // ── Summary Cards ─────────────────────────────────────────────────────
-        $totalSellers      = Seller::count();
-        $totalProducts     = Product::count();
-        $totalWishlist     = $analytics->sum('wishlist_count');
-        $totalCart         = $analytics->sum('cart_count');
+    // ─── Main admin report page (with filters) ─────────────────────────────────
+    public function index(Request $request)
+    {
+        $data = $this->reportService->getAdminReportData($request);
+        return view('admin.reports.index', $data);
+    }
 
-        $mostPopular = $analytics
-            ->sortByDesc(fn($a) => $a->wishlist_count + $a->cart_count)
-            ->first();
+    // ─── Export PDF ─────────────────────────────────────────────────────────────
+    public function exportPdf(Request $request)
+    {
+        $data = $this->reportService->getAdminReportData($request);
+        $data['generatedAt']    = now()->format('d M Y, h:i A');
+        $data['appliedFilters'] = $this->buildAdminFilterSummary($request);
 
-        // Top seller by total interest
-        $topSellerData = $analytics
-            ->groupBy('seller_id')
-            ->map(fn($group) => [
-                'seller'          => $group->first()->seller,
-                'total_interest'  => $group->sum(fn($a) => $a->wishlist_count + $a->cart_count),
-            ])
-            ->sortByDesc('total_interest')
-            ->first();
+        if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.reports.pdf', $data)
+                ->setPaper('a4', 'landscape');
+            return $pdf->download('marketplace-report-' . now()->format('Y-m-d') . '.pdf');
+        }
 
-        // ── Most Popular Products (all sellers) ───────────────────────────────
-        $popularProducts = $analytics
-            ->map(function ($a) {
-                $a->total_interest = $a->wishlist_count + $a->cart_count;
-                return $a;
-            })
-            ->sortByDesc('total_interest')
-            ->values();
+        return view('admin.reports.pdf', $data);
+    }
 
-        // ── Seller Performance ────────────────────────────────────────────────
-        $sellerPerformance = $analytics
-            ->groupBy('seller_id')
-            ->map(function ($group) {
-                $seller = $group->first()->seller;
-                return [
-                    'seller'          => $seller,
-                    'product_count'   => $group->count(),
-                    'wishlist_count'  => $group->sum('wishlist_count'),
-                    'cart_count'      => $group->sum('cart_count'),
-                    'total_interest'  => $group->sum(fn($a) => $a->wishlist_count + $a->cart_count),
-                ];
-            })
-            ->sortByDesc('total_interest')
-            ->values();
+    // ─── Helpers ────────────────────────────────────────────────────────────────
+    private function buildAdminFilterSummary(Request $request): array
+    {
+        $filters = [];
 
-        // ── Category Performance ──────────────────────────────────────────────
-        $categoryPerformance = $analytics
-            ->groupBy(fn($a) => optional($a->product?->category)->id)
-            ->map(function ($group) {
-                $category = $group->first()?->product?->category;
-                return [
-                    'category'       => $category,
-                    'wishlist_count' => $group->sum('wishlist_count'),
-                    'cart_count'     => $group->sum('cart_count'),
-                    'total_interest' => $group->sum(fn($a) => $a->wishlist_count + $a->cart_count),
-                ];
-            })
-            ->filter(fn($row) => $row['category'] !== null)
-            ->sortByDesc('total_interest')
-            ->values();
+        if ($request->filled('search')) {
+            $filters[] = 'Search: ' . $request->search;
+        }
+        if ($request->filled('seller_id')) {
+            $seller = Seller::find($request->seller_id);
+            $filters[] = 'Seller: ' . ($seller?->business_name ?? $request->seller_id);
+        }
+        if ($request->filled('category_id')) {
+            $cat = Category::find($request->category_id);
+            $filters[] = 'Category: ' . ($cat?->name ?? $request->category_id);
+        }
+        if ($request->filled('brand_id')) {
+            $brand = Brand::find($request->brand_id);
+            $filters[] = 'Brand: ' . ($brand?->name ?? $request->brand_id);
+        }
+        if ($request->filled('status') && $request->status !== 'all') {
+            $filters[] = 'Status: ' . ucfirst($request->status);
+        }
+        if ($request->filled('approval_status') && $request->approval_status !== 'all') {
+            $filters[] = 'Approval: ' . ucfirst($request->approval_status);
+        }
+        if ($request->filled('quick_date') && $request->quick_date !== 'custom') {
+            $labels = [
+                'today'      => 'Today',
+                'yesterday'  => 'Yesterday',
+                'last7'      => 'Last 7 Days',
+                'last30'     => 'Last 30 Days',
+                'this_month' => 'This Month',
+                'last_month' => 'Last Month',
+            ];
+            $filters[] = 'Period: ' . ($labels[$request->quick_date] ?? $request->quick_date);
+        } elseif ($request->filled('date_from') || $request->filled('date_to')) {
+            $filters[] = 'Date: ' . ($request->date_from ?? '∞') . ' → ' . ($request->date_to ?? '∞');
+        }
 
-        // ── Chart Data ────────────────────────────────────────────────────────
-        // Top sellers chart
-        $sellerChartLabels   = $sellerPerformance->take(10)->map(fn($s) => optional($s['seller'])->business_name ?? 'Unknown');
-        $sellerChartWishlist = $sellerPerformance->take(10)->map(fn($s) => $s['wishlist_count']);
-        $sellerChartCart     = $sellerPerformance->take(10)->map(fn($s) => $s['cart_count']);
-
-        // Top products chart
-        $productChartLabels   = $popularProducts->take(10)->map(fn($a) => $a->product?->name ?? 'Unknown');
-        $productChartWishlist = $popularProducts->take(10)->map(fn($a) => $a->wishlist_count);
-        $productChartCart     = $popularProducts->take(10)->map(fn($a) => $a->cart_count);
-
-        // Category chart
-        $catChartLabels   = $categoryPerformance->take(10)->map(fn($c) => $c['category']->name ?? 'Unknown');
-        $catChartInterest = $categoryPerformance->take(10)->map(fn($c) => $c['total_interest']);
-
-        return view('admin.reports.index', compact(
-            'totalSellers',
-            'totalProducts',
-            'totalWishlist',
-            'totalCart',
-            'mostPopular',
-            'topSellerData',
-            'popularProducts',
-            'sellerPerformance',
-            'categoryPerformance',
-            'sellerChartLabels',
-            'sellerChartWishlist',
-            'sellerChartCart',
-            'productChartLabels',
-            'productChartWishlist',
-            'productChartCart',
-            'catChartLabels',
-            'catChartInterest'
-        ));
+        return $filters ?: ['No filters applied — entire marketplace'];
     }
 }

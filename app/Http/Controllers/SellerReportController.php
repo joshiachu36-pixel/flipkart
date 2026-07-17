@@ -4,94 +4,83 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\ProductAnalytics;
 use App\Models\Product;
+use App\Services\ReportService;
 
 class SellerReportController extends Controller
 {
-    public function index()
+    protected ReportService $reportService;
+
+    public function __construct(ReportService $reportService)
+    {
+        $this->reportService = $reportService;
+    }
+
+    // ─── Main report page (with filters) ──────────────────────────────────────
+    public function index(Request $request)
     {
         $seller = Auth::guard('seller')->user();
+        $data   = $this->reportService->getSellerReportData($seller->id, $request);
 
-        // All analytics records for this seller only (security: seller_id filter)
-        $analytics = ProductAnalytics::with(['product.category', 'product.variants.color', 'product.variants.sizes'])
-            ->where('seller_id', $seller->id)
-            ->get();
+        // Merge seller into data (service doesn't have it in scope)
+        $data['seller'] = $seller;
 
-        // ── Summary Cards ────────────────────────────────────────────────────
-        $totalProducts   = $seller->products()->count();
-        $totalWishlist   = $analytics->sum('wishlist_count');
-        $totalCart       = $analytics->sum('cart_count');
+        return view('seller.reports.index', $data);
+    }
 
-        $mostPopular = $analytics
-            ->sortByDesc(fn($a) => $a->wishlist_count + $a->cart_count)
-            ->first();
+    // ─── Export PDF ────────────────────────────────────────────────────────────
+    public function exportPdf(Request $request)
+    {
+        $seller = Auth::guard('seller')->user();
+        $data   = $this->reportService->getSellerReportData($seller->id, $request);
+        $data['seller']        = $seller;
+        $data['generatedAt']   = now()->format('d M Y, h:i A');
+        $data['appliedFilters'] = $this->buildSellerFilterSummary($request);
 
-        // ── Top Products by Total Interest ────────────────────────────────────
-        $topProducts = $analytics
-            ->map(function ($a) {
-                $a->total_interest = $a->wishlist_count + $a->cart_count;
-                return $a;
-            })
-            ->sortByDesc('total_interest')
-            ->values();
-
-        // ── Top Wishlist Products (top 10) ────────────────────────────────────
-        $topWishlist = $analytics->sortByDesc('wishlist_count')->take(10)->values();
-
-        // ── Top Cart Products (top 10) ─────────────────────────────────────────
-        $topCart = $analytics->sortByDesc('cart_count')->take(10)->values();
-
-        // ── Zero Interest Products ─────────────────────────────────────────────
-        $zeroInterest = $analytics->filter(function ($a) {
-            return $a->wishlist_count == 0 && $a->cart_count == 0;
-        })->values();
-
-        // ── Products with NO analytics record yet (never added to cart/wishlist)
-        $productIds   = $analytics->pluck('product_id')->toArray();
-        $untracked    = $seller->products()
-            ->whereNotIn('id', $productIds)
-            ->get();
-
-        // ── Variant Analytics ─────────────────────────────────────────────────
-        $variantAnalytics = collect();
-        foreach ($analytics as $a) {
-            if ($a->product && $a->product->variants->isNotEmpty()) {
-                foreach ($a->product->variants as $variant) {
-                    $variantAnalytics->push([
-                        'product'   => $a->product,
-                        'variant'   => $variant,
-                        'color'     => $variant->color,
-                        'sizes'     => $variant->sizes,
-                        'wishlist'  => $a->wishlist_count,
-                        'cart'      => $a->cart_count,
-                    ]);
-                }
-            }
+        // Use DomPDF if installed, otherwise fallback to printable HTML
+        if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('seller.reports.pdf', $data)
+                ->setPaper('a4', 'portrait');
+            return $pdf->download('seller-report-' . now()->format('Y-m-d') . '.pdf');
         }
 
-        // ── Chart Data ────────────────────────────────────────────────────────
-        $chartLabels    = $topProducts->take(10)->map(fn($a) => $a->product?->name ?? 'Unknown')->values();
-        $chartWishlist  = $topProducts->take(10)->map(fn($a) => $a->wishlist_count)->values();
-        $chartCart      = $topProducts->take(10)->map(fn($a) => $a->cart_count)->values();
-        $chartInterest  = $topProducts->take(10)->map(fn($a) => $a->total_interest)->values();
+        // Fallback: render printable HTML
+        return view('seller.reports.pdf', $data);
+    }
 
-        return view('seller.reports.index', compact(
-            'seller',
-            'totalProducts',
-            'totalWishlist',
-            'totalCart',
-            'mostPopular',
-            'topProducts',
-            'topWishlist',
-            'topCart',
-            'zeroInterest',
-            'untracked',
-            'variantAnalytics',
-            'chartLabels',
-            'chartWishlist',
-            'chartCart',
-            'chartInterest'
-        ));
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+    private function buildSellerFilterSummary(Request $request): array
+    {
+        $filters = [];
+
+        if ($request->filled('search')) {
+            $filters[] = 'Search: ' . $request->search;
+        }
+        if ($request->filled('product_id')) {
+            $product = Product::find($request->product_id);
+            $filters[] = 'Product: ' . ($product?->name ?? $request->product_id);
+        }
+        if ($request->filled('category_id')) {
+            $cat = \App\Models\Category::find($request->category_id);
+            $filters[] = 'Category: ' . ($cat?->name ?? $request->category_id);
+        }
+        if ($request->filled('status') && $request->status !== 'all') {
+            $filters[] = 'Status: ' . ucfirst($request->status);
+        }
+        if ($request->filled('quick_date') && $request->quick_date !== 'custom') {
+            $labels = [
+                'today'      => 'Today',
+                'yesterday'  => 'Yesterday',
+                'last7'      => 'Last 7 Days',
+                'last30'     => 'Last 30 Days',
+                'this_month' => 'This Month',
+                'last_month' => 'Last Month',
+            ];
+            $filters[] = 'Period: ' . ($labels[$request->quick_date] ?? $request->quick_date);
+        } elseif ($request->filled('date_from') || $request->filled('date_to')) {
+            $filters[] = 'Date: ' . ($request->date_from ?? '∞') . ' → ' . ($request->date_to ?? '∞');
+        }
+
+        return $filters ?: ['No filters applied (all data)'];
     }
 }
