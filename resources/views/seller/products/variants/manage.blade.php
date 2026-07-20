@@ -2,236 +2,203 @@
 
 @section('content')
 
-<div class="container mt-4">
+<div class="container-fluid py-3">
 
     <div class="d-flex justify-content-between align-items-center mb-4">
-
         <div>
-
-            <h2 class="fw-bold">Manage Variants</h2>
-
-            <p class="text-muted mb-0">{{ $product->name }}</p>
-
+            <h2 class="fw-bold mb-1">Manage Variants & Inventory</h2>
+            <p class="text-muted mb-0">Configure colors, SKUs, and independent size-level stock & pricing for: <strong>{{ $product->name }}</strong></p>
         </div>
 
         <div class="d-flex gap-2">
-
             <button type="button" id="btn-add-color" class="btn btn-success">
-                <i class="bi bi-plus-circle"></i> Add Color
+                <i class="bi bi-plus-circle me-1"></i> Add Color Variant
             </button>
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSizeModal">
-                <i class="bi bi-plus-circle"></i> Add Size
+                <i class="bi bi-plus-circle me-1"></i> Add Size Option
             </button>
-
-            <a href="{{ route('seller.products.index') }}" class="btn btn-secondary">Back to Products</a>
-
+            <a href="{{ route('seller.products.index') }}" class="btn btn-outline-secondary">Back to Products</a>
         </div>
-
     </div>
 
     @if(session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
+        <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>{{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
     @endif
 
-    @if($variants->count() > 0 || true)
-
-    <div class="card shadow">
-
-        <div class="card-body">
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
 
             <form action="{{ route('seller.products.variants.store', $product->id) }}" method="POST" enctype="multipart/form-data">
-
                 @csrf
 
                 <div class="table-responsive">
-
                     <table class="table table-bordered align-middle" id="variants-table">
-
                         <thead class="table-light">
-
                             <tr>
-
+                                <th width="7%">Priority</th>
                                 <th width="15%">Color</th>
-
-                                <th width="40%">Sizes & Stock and Price</th>
-
-                                <th width="20%">Variant Image</th>
-
-                                <th width="12%">Status</th>
-
-                                <th width="13%">Action</th>
-
+                                <th width="15%">SKU</th>
+                                <th width="38%">Sizes & Independent Pricing (Stock, Selling Price, Original Price)</th>
+                                <th width="13%">Variant Image</th>
+                                <th width="7%">Status</th>
+                                <th width="5%" class="text-center">Action</th>
                             </tr>
-
                         </thead>
 
                         <tbody id="variants-tbody">
-
                             @foreach($variants as $index => $variant)
-
                             <tr data-variant-id="{{ $variant->id }}" data-is-saved="1">
+
+                                {{-- ── Priority ── --}}
+                                <td>
+                                    <input type="number" class="form-control form-control-sm text-center fw-bold" 
+                                           name="variants[{{ $index }}][priority]" value="{{ old("variants.$index.priority", $variant->priority ?? ($index + 1)) }}" min="1">
+                                    <small class="text-muted d-block text-center mt-1">
+                                        @if(($variant->priority ?? ($index + 1)) == 1)
+                                            <span class="badge bg-primary-subtle text-primary border border-primary px-1">Default</span>
+                                        @endif
+                                    </small>
+                                </td>
 
                                 {{-- ── Color ── --}}
                                 <td>
-
-                                    <div class="d-flex align-items-center gap-2">
-
-                                        <div
-                                            style="width:20px;height:20px;background-color:{{ $variant->color->code ?? '#000' }};border-radius:50%;border:2px solid #ddd;">
-                                        </div>
-
-                                        <strong>{{ $variant->color->name ?? 'N/A' }}</strong>
-
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <div style="width:20px;height:20px;background-color:{{ $variant->color->code ?? '#000' }};border-radius:50%;border:2px solid #ddd;"></div>
+                                        <strong class="text-dark">{{ $variant->color->name ?? 'N/A' }}</strong>
                                     </div>
-
                                     <input type="hidden" name="variants[{{ $index }}][color_id]" value="{{ $variant->color_id }}">
-
                                 </td>
 
-                                {{-- ── Sizes (checkbox + stock + price per size) ── --}}
+                                {{-- ── SKU ── --}}
                                 <td>
+                                    <input type="text" class="form-control form-control-sm font-monospace" 
+                                           name="variants[{{ $index }}][sku]" value="{{ old("variants.$index.sku", $variant->sku) }}" placeholder="Auto SKU">
+                                </td>
 
-                                    <div class="border rounded p-2">
-
+                                {{-- ── Sizes & Independent Pricing ── --}}
+                                <td>
+                                    <div class="border rounded p-2 bg-light">
                                         @foreach($sizes as $size)
-
                                             @php
                                                 $selectedSize = $variant->sizes->firstWhere('id', $size->id);
                                                 $sizePrice    = $selectedSize ? $selectedSize->pivot->price : '';
+                                                $sizeOrig     = $selectedSize ? $selectedSize->pivot->original_price : '';
                                                 $sizeStock    = $selectedSize ? $selectedSize->pivot->stock : 0;
+                                                $discountPct  = 0;
+                                                if ($sizeOrig > 0 && $sizePrice > 0 && $sizePrice < $sizeOrig) {
+                                                    $discountPct = round((($sizeOrig - $sizePrice) / $sizeOrig) * 100);
+                                                }
                                             @endphp
 
-                                            <div class="d-flex align-items-start mb-3">
-
-                                                {{-- Checkbox --}}
-                                                <div class="form-check me-2 mt-1">
-                                                    <input
-                                                        class="form-check-input size-checkbox"
-                                                        type="checkbox"
-                                                        name="variants[{{ $index }}][sizes][{{ $size->id }}][selected]"
-                                                        value="1"
-                                                        {{ $selectedSize ? 'checked' : '' }}>
-                                                </div>
-
-                                                {{-- Size label + inputs --}}
-                                                <div class="flex-grow-1">
-
-                                                    <div class="fw-semibold mb-1">{{ $size->name }}</div>
-
-                                                    <div class="d-flex gap-2">
-
-                                                        <input
-                                                            type="number"
-                                                            class="form-control form-control-sm size-stock"
-                                                            name="variants[{{ $index }}][sizes][{{ $size->id }}][stock]"
-                                                            value="{{ $sizeStock }}"
-                                                            min="0"
-                                                            placeholder="Stock"
-                                                            {{ $selectedSize ? '' : 'disabled' }}>
-
-                                                        <input
-                                                            type="number"
-                                                            step="0.01"
-                                                            class="form-control form-control-sm size-price"
-                                                            name="variants[{{ $index }}][sizes][{{ $size->id }}][price]"
-                                                            value="{{ $sizePrice }}"
-                                                            min="0"
-                                                            placeholder="Price (₹)"
-                                                            {{ $selectedSize ? '' : 'disabled' }}>
-
+                                            <div class="size-item-row p-2 bg-white rounded border mb-2">
+                                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input size-checkbox" type="checkbox"
+                                                            name="variants[{{ $index }}][sizes][{{ $size->id }}][selected]"
+                                                            value="1" {{ $selectedSize ? 'checked' : '' }}>
+                                                        <label class="form-check-label fw-bold text-dark me-2">{{ $size->name }}</label>
                                                     </div>
-
+                                                    <div class="discount-badge-container">
+                                                        @if($discountPct > 0)
+                                                            <span class="badge bg-danger-subtle text-danger border border-danger px-2 py-0.5" style="font-size: 0.7rem;">
+                                                                <i class="bi bi-tag-fill me-1"></i>{{ $discountPct }}% OFF
+                                                            </span>
+                                                        @endif
+                                                    </div>
                                                 </div>
 
+                                                <div class="row g-2">
+                                                    <div class="col-4">
+                                                        <label class="form-label mb-0 small text-muted">Stock</label>
+                                                        <input type="number" class="form-control form-control-sm size-stock"
+                                                            name="variants[{{ $index }}][sizes][{{ $size->id }}][stock]"
+                                                            value="{{ $sizeStock }}" min="0" placeholder="Stock" {{ $selectedSize ? '' : 'disabled' }}>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <label class="form-label mb-0 small text-muted">Selling Price (₹)</label>
+                                                        <input type="number" step="0.01" class="form-control form-control-sm size-price selling-price-input"
+                                                            name="variants[{{ $index }}][sizes][{{ $size->id }}][price]"
+                                                            value="{{ $sizePrice }}" min="0" placeholder="Selling ₹" {{ $selectedSize ? '' : 'disabled' }}>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <label class="form-label mb-0 small text-muted">Original Price (₹)</label>
+                                                        <input type="number" step="0.01" class="form-control form-control-sm size-original-price original-price-input"
+                                                            name="variants[{{ $index }}][sizes][{{ $size->id }}][original_price]"
+                                                            value="{{ $sizeOrig }}" min="0" placeholder="MSRP ₹" {{ $selectedSize ? '' : 'disabled' }}>
+                                                    </div>
+                                                </div>
                                             </div>
-
                                         @endforeach
-
                                     </div>
-
                                 </td>
 
                                 {{-- ── Variant Image ── --}}
                                 <td>
-
-                                    <input
-                                        type="file"
-                                        class="form-control"
-                                        name="variants[{{ $index }}][image]"
-                                        accept="image/*">
-
+                                    <input type="file" class="form-control form-control-sm" 
+                                           name="variants[{{ $index }}][image]" accept="image/*">
                                     @if($variant->image)
-                                        <small class="text-muted d-block mt-1">Current: Uploaded</small>
+                                        <div class="mt-2 text-center">
+                                            <img src="{{ asset('storage/'.$variant->image) }}" class="rounded border shadow-sm" style="width: 50px; height: 50px; object-fit: cover;">
+                                        </div>
                                     @endif
-
                                 </td>
 
                                 {{-- ── Status ── --}}
                                 <td>
-
-                                    <select class="form-select" name="variants[{{ $index }}][status]">
-
+                                    <select class="form-select form-select-sm" name="variants[{{ $index }}][status]">
                                         <option value="1" {{ $variant->status == 1 ? 'selected' : '' }}>Active</option>
-
                                         <option value="0" {{ $variant->status == 0 ? 'selected' : '' }}>Inactive</option>
-
                                     </select>
-
                                 </td>
 
                                 {{-- ── Action ── --}}
                                 <td class="text-center">
-
-                                    <button
-                                        type="button"
-                                        class="btn btn-danger btn-sm btn-delete-variant"
+                                    <button type="button" class="btn btn-outline-danger btn-sm btn-delete-variant"
                                         data-variant-id="{{ $variant->id }}"
                                         data-delete-url="{{ route('seller.products.variants.destroy', [$product->id, $variant->id]) }}"
                                         data-color-name="{{ $variant->color->name ?? 'this color' }}">
-                                        <i class="bi bi-trash"></i> Delete
+                                        <i class="bi bi-trash"></i>
                                     </button>
-
                                 </td>
 
                             </tr>
-
                             @endforeach
-
                         </tbody>
-
                     </table>
-
                 </div>
 
-                <button type="submit" class="btn btn-primary btn-lg">
-                    <i class="bi bi-save"></i> Update Variants
-                </button>
+                <div class="mt-4 d-flex justify-content-between align-items-center">
+                    <div class="text-muted small">
+                        <i class="bi bi-info-circle me-1"></i> Every selected size has its own independent stock, selling price, and original price.
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg px-4">
+                        <i class="bi bi-check-circle me-1"></i> Save & Update Variants
+                    </button>
+                </div>
 
             </form>
 
         </div>
-
     </div>
-
-    @endif
 
 </div>
 
-{{-- ============================================================
-     Hidden template for a NEW (unsaved) color row — cloned by JS
-     ============================================================ --}}
+{{-- Template for NEW color row --}}
 <template id="new-color-row-template">
     <tr data-variant-id="" data-is-saved="0">
 
-        {{-- Color dropdown --}}
         <td>
-            <select class="form-select new-color-select" name="__NEW_COLOR_SELECT__">
+            <input type="number" class="form-control form-control-sm text-center fw-bold" name="__VARIANT_PRIORITY__" value="1" min="1">
+        </td>
+
+        <td>
+            <select class="form-select form-select-sm new-color-select" name="__NEW_COLOR_SELECT__">
                 <option value="">-- Select Color --</option>
                 @foreach($colors as $color)
-                    <option
-                        value="{{ $color->id }}"
-                        data-code="{{ $color->code }}"
-                        data-used="{{ $variants->contains('color_id', $color->id) ? '1' : '0' }}">
+                    <option value="{{ $color->id }}" data-code="{{ $color->code }}" data-used="{{ $variants->contains('color_id', $color->id) ? '1' : '0' }}">
                         {{ $color->name }}
                     </option>
                 @endforeach
@@ -239,75 +206,54 @@
             <input type="hidden" class="hidden-color-id" name="__COLOR_ID__" value="">
         </td>
 
-        {{-- Sizes --}}
         <td>
-            <div class="border rounded p-2">
+            <input type="text" class="form-control form-control-sm font-monospace" name="__VARIANT_SKU__" placeholder="Auto SKU">
+        </td>
+
+        <td>
+            <div class="border rounded p-2 bg-light">
                 @foreach($sizes as $size)
-                <div class="d-flex align-items-start mb-3">
-
-                    <div class="form-check me-2 mt-1">
-                        <input
-                            class="form-check-input size-checkbox"
-                            type="checkbox"
-                            name="__SIZE_SELECTED_{{ $size->id }}__"
-                            value="1">
-                    </div>
-
-                    <div class="flex-grow-1">
-
-                        <div class="fw-semibold mb-1">{{ $size->name }}</div>
-
-                        <div class="d-flex gap-2">
-
-                            <input
-                                type="number"
-                                class="form-control form-control-sm size-stock"
-                                name="__SIZE_STOCK_{{ $size->id }}__"
-                                value="0"
-                                min="0"
-                                placeholder="Stock"
-                                disabled>
-
-                            <input
-                                type="number"
-                                step="0.01"
-                                class="form-control form-control-sm size-price"
-                                name="__SIZE_PRICE_{{ $size->id }}__"
-                                value=""
-                                min="0"
-                                placeholder="Price (₹)"
-                                disabled>
-
+                <div class="size-item-row p-2 bg-white rounded border mb-2">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="form-check">
+                            <input class="form-check-input size-checkbox" type="checkbox" name="__SIZE_SELECTED_{{ $size->id }}__" value="1">
+                            <label class="form-check-label fw-bold text-dark me-2">{{ $size->name }}</label>
                         </div>
-
+                        <div class="discount-badge-container"></div>
                     </div>
-
+                    <div class="row g-2">
+                        <div class="col-4">
+                            <label class="form-label mb-0 small text-muted">Stock</label>
+                            <input type="number" class="form-control form-control-sm size-stock" name="__SIZE_STOCK_{{ $size->id }}__" value="0" min="0" placeholder="Stock" disabled>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label mb-0 small text-muted">Selling Price (₹)</label>
+                            <input type="number" step="0.01" class="form-control form-control-sm size-price selling-price-input" name="__SIZE_PRICE_{{ $size->id }}__" value="" min="0" placeholder="Selling ₹" disabled>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label mb-0 small text-muted">Original Price (₹)</label>
+                            <input type="number" step="0.01" class="form-control form-control-sm size-original-price original-price-input" name="__SIZE_ORIGINAL_PRICE_{{ $size->id }}__" value="" min="0" placeholder="MSRP ₹" disabled>
+                        </div>
+                    </div>
                 </div>
                 @endforeach
             </div>
         </td>
 
-        {{-- Variant Image --}}
         <td>
-            <input
-                type="file"
-                class="form-control"
-                name="__VARIANT_IMAGE__"
-                accept="image/*">
+            <input type="file" class="form-control form-control-sm" name="__VARIANT_IMAGE__" accept="image/*">
         </td>
 
-        {{-- Status --}}
         <td>
-            <select class="form-select" name="__VARIANT_STATUS__">
+            <select class="form-select form-select-sm" name="__VARIANT_STATUS__">
                 <option value="1">Active</option>
                 <option value="0">Inactive</option>
             </select>
         </td>
 
-        {{-- Action --}}
         <td class="text-center">
-            <button type="button" class="btn btn-danger btn-sm btn-delete-new">
-                <i class="bi bi-trash"></i> Delete
+            <button type="button" class="btn btn-outline-danger btn-sm btn-delete-new">
+                <i class="bi bi-trash"></i>
             </button>
         </td>
 
@@ -315,24 +261,24 @@
 </template>
 
 <!-- Add Size Modal -->
-<div class="modal fade" id="addSizeModal" tabindex="-1" aria-labelledby="addSizeModalLabel" aria-hidden="true">
+<div class="modal fade" id="addSizeModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="addSizeModalLabel">Add New Size</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title fs-6">Add New Size Option</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="add-size-form">
                     <div class="mb-3">
-                        <label for="sizeName" class="form-label">Size Name</label>
-                        <input type="text" class="form-control" id="sizeName" name="name" required>
+                        <label class="form-label fw-semibold">Size Name</label>
+                        <input type="text" class="form-control" id="sizeName" name="name" placeholder="e.g. S, M, L, XL, 42" required>
                     </div>
                     <input type="hidden" name="status" value="1">
                     <div id="size-error" class="text-danger mb-2 d-none"></div>
                     <div class="text-end">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary" id="btn-save-size">Save Size</button>
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-sm" id="btn-save-size">Save Size</button>
                     </div>
                 </form>
             </div>
@@ -340,32 +286,58 @@
     </div>
 </div>
 
-{{-- Pass PHP data to JS --}}
 <script>
 const CSRF_TOKEN    = '{{ csrf_token() }}';
 const EXISTING_USED = @json($variants->pluck('color_id')->toArray());
-// sizes array for name-replacement
 const SIZES_DATA    = @json($sizes->map(fn($s) => ['id' => $s->id, 'name' => $s->name]));
-// Next row index starts after existing variants
 let newRowIndex     = {{ $variants->count() }};
 
 document.addEventListener('DOMContentLoaded', function () {
 
-    // ── 1. Checkbox toggle (price/stock enable/disable) ──────────────────
+    function calculateSizeDiscount(sizeItemRow) {
+        const sellingInput   = sizeItemRow.querySelector('.selling-price-input');
+        const originalInput  = sizeItemRow.querySelector('.original-price-input');
+        const badgeContainer = sizeItemRow.querySelector('.discount-badge-container');
+        if (!sellingInput || !originalInput || !badgeContainer) return;
+
+        const selling  = parseFloat(sellingInput.value) || 0;
+        const original = parseFloat(originalInput.value) || 0;
+
+        if (original > 0 && selling > 0 && selling < original) {
+            const pct = Math.round(((original - selling) / original) * 100);
+            badgeContainer.innerHTML = `<span class="badge bg-danger-subtle text-danger border border-danger px-2 py-0.5" style="font-size: 0.7rem;"><i class="bi bi-tag-fill me-1"></i>${pct}% OFF</span>`;
+        } else {
+            badgeContainer.innerHTML = '';
+        }
+    }
+
+    function bindSizeItemEvents(container) {
+        container.querySelectorAll('.size-item-row').forEach(sizeRow => {
+            const sellingInput  = sizeRow.querySelector('.selling-price-input');
+            const originalInput = sizeRow.querySelector('.original-price-input');
+            if (sellingInput) sellingInput.addEventListener('input', () => calculateSizeDiscount(sizeRow));
+            if (originalInput) originalInput.addEventListener('input', () => calculateSizeDiscount(sizeRow));
+        });
+    }
+
+    bindSizeItemEvents(document.getElementById('variants-tbody'));
+
     function bindCheckboxes(context) {
         context.querySelectorAll('.size-checkbox').forEach(function (checkbox) {
             function toggleInputs() {
-                const row        = checkbox.closest('div.d-flex');
-                const priceInput = row.querySelector('.size-price');
-                const stockInput = row.querySelector('.size-stock');
+                const sizeRow     = checkbox.closest('.size-item-row');
+                const priceInput  = sizeRow.querySelector('.size-price');
+                const origInput   = sizeRow.querySelector('.size-original-price');
+                const stockInput  = sizeRow.querySelector('.size-stock');
                 if (checkbox.checked) {
-                    priceInput.disabled = false;
-                    stockInput.disabled = false;
+                    if (priceInput) priceInput.disabled = false;
+                    if (origInput) origInput.disabled = false;
+                    if (stockInput) stockInput.disabled = false;
                 } else {
-                    priceInput.disabled = true;
-                    stockInput.disabled = true;
-                    priceInput.value    = '';
-                    stockInput.value    = 0;
+                    if (priceInput) { priceInput.disabled = true; priceInput.value = ''; }
+                    if (origInput) { origInput.disabled = true; origInput.value = ''; }
+                    if (stockInput) { stockInput.disabled = true; stockInput.value = 0; }
+                    calculateSizeDiscount(sizeRow);
                 }
             }
             toggleInputs();
@@ -373,10 +345,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Bind on existing rows
     bindCheckboxes(document.getElementById('variants-tbody'));
 
-    // ── 2. Delete existing (saved) variant ────────────────────────────────
     document.getElementById('variants-tbody').addEventListener('click', function (e) {
         const btn = e.target.closest('.btn-delete-variant');
         if (!btn) return;
@@ -385,7 +355,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const url       = btn.dataset.deleteUrl;
         const row       = btn.closest('tr');
 
-        if (!confirm(`Delete the "${colorName}" variant? This will also remove all its size/price/stock data. This cannot be undone.`)) {
+        if (!confirm(`Delete the "${colorName}" variant? This cannot be undone.`)) {
             return;
         }
 
@@ -396,32 +366,23 @@ document.addEventListener('DOMContentLoaded', function () {
                 'Accept': 'application/json',
             },
         })
-        .then(function (res) {
-            if (!res.ok) throw new Error('Server error: ' + res.status);
-            return res.json();
-        })
-        .then(function (data) {
+        .then(res => res.json())
+        .then(data => {
             if (data.success) {
-                // Remove the color_id from the "used" list so it appears in new dropdowns
-                const colorId = parseInt(row.querySelector('input[type=hidden]').value);
+                const colorId = parseInt(row.querySelector('input[name*="[color_id]"]').value);
                 const pos = EXISTING_USED.indexOf(colorId);
                 if (pos > -1) EXISTING_USED.splice(pos, 1);
 
                 row.remove();
                 refreshNewDropdowns();
             }
-        })
-        .catch(function (err) {
-            alert('Failed to delete variant: ' + err.message);
         });
     });
 
-    // ── 3. Delete unsaved (new) variant row ──────────────────────────────
     document.getElementById('variants-tbody').addEventListener('click', function (e) {
         const btn = e.target.closest('.btn-delete-new');
         if (!btn) return;
         const row = btn.closest('tr');
-        // Free the selected color_id back to available
         const select = row.querySelector('.new-color-select');
         if (select && select.value) {
             const selectedId = parseInt(select.value);
@@ -432,30 +393,33 @@ document.addEventListener('DOMContentLoaded', function () {
         refreshNewDropdowns();
     });
 
-    // ── 4. Add Color button ───────────────────────────────────────────────
     document.getElementById('btn-add-color').addEventListener('click', function () {
         const template = document.getElementById('new-color-row-template');
         const clone    = template.content.cloneNode(true);
         const tr       = clone.querySelector('tr');
         const idx      = newRowIndex++;
 
-        // Replace placeholder names with real indexed names
         tr.querySelectorAll('[name]').forEach(function (el) {
             el.name = el.name
-                .replace('__NEW_COLOR_SELECT__', 'new_color_select_' + idx)      // not submitted
+                .replace('__VARIANT_PRIORITY__', 'variants[' + idx + '][priority]')
+                .replace('__NEW_COLOR_SELECT__', 'new_color_select_' + idx)
                 .replace('__COLOR_ID__',         'variants[' + idx + '][color_id]')
+                .replace('__VARIANT_SKU__',      'variants[' + idx + '][sku]')
                 .replace('__VARIANT_IMAGE__',    'variants[' + idx + '][image]')
                 .replace('__VARIANT_STATUS__',   'variants[' + idx + '][status]');
 
             SIZES_DATA.forEach(function (size) {
                 el.name = el.name
-                    .replace('__SIZE_SELECTED_' + size.id + '__', 'variants[' + idx + '][sizes][' + size.id + '][selected]')
-                    .replace('__SIZE_STOCK_'    + size.id + '__', 'variants[' + idx + '][sizes][' + size.id + '][stock]')
-                    .replace('__SIZE_PRICE_'    + size.id + '__', 'variants[' + idx + '][sizes][' + size.id + '][price]');
+                    .replace('__SIZE_SELECTED_' + size.id + '__',       'variants[' + idx + '][sizes][' + size.id + '][selected]')
+                    .replace('__SIZE_STOCK_'    + size.id + '__',       'variants[' + idx + '][sizes][' + size.id + '][stock]')
+                    .replace('__SIZE_PRICE_'    + size.id + '__',       'variants[' + idx + '][sizes][' + size.id + '][price]')
+                    .replace('__SIZE_ORIGINAL_PRICE_' + size.id + '__', 'variants[' + idx + '][sizes][' + size.id + '][original_price]');
             });
         });
 
-        // Remove already-used colors from the dropdown
+        const priorityInput = tr.querySelector('input[name*="[priority]"]');
+        if (priorityInput) priorityInput.value = idx + 1;
+
         const select = tr.querySelector('.new-color-select');
         Array.from(select.options).forEach(function (opt) {
             if (opt.value && EXISTING_USED.includes(parseInt(opt.value))) {
@@ -463,10 +427,8 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        // When a color is chosen, mark it as used and sync the hidden input
         const hiddenColorId = tr.querySelector('.hidden-color-id');
         select.addEventListener('change', function () {
-            // Un-mark previous selection from used list
             if (hiddenColorId.value) {
                 const prev = parseInt(hiddenColorId.value);
                 const pos  = EXISTING_USED.indexOf(prev);
@@ -480,25 +442,21 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         document.getElementById('variants-tbody').appendChild(tr);
-
-        // Bind checkbox toggles for new row
         bindCheckboxes(tr);
+        bindSizeItemEvents(tr);
     });
 
-    // ── 5. Refresh all new-row dropdowns to hide newly-used colors ────────
     function refreshNewDropdowns() {
         document.querySelectorAll('.new-color-select').forEach(function (select) {
             const currentVal = select.value;
             Array.from(select.options).forEach(function (opt) {
-                if (!opt.value) return; // keep placeholder
+                if (!opt.value) return;
                 const id = parseInt(opt.value);
-                // Show if: not in used list, OR it's the currently selected value of THIS dropdown
                 opt.hidden = EXISTING_USED.includes(id) && id !== parseInt(currentVal);
             });
         });
     }
 
-    // ── 6. Add Size via AJAX ──────────────────────────────────────────────
     document.getElementById('add-size-form').addEventListener('submit', function (e) {
         e.preventDefault();
         const form = e.target;
@@ -519,57 +477,28 @@ document.addEventListener('DOMContentLoaded', function () {
             },
             body: formData
         })
-        .then(res => res.json().then(data => ({ status: res.status, ok: res.ok, body: data })))
-        .then(res => {
-            if (!res.ok) {
-                if (res.status === 422) {
-                    throw new Error(res.body.errors ? Object.values(res.body.errors)[0][0] : res.body.message);
-                } else {
-                    throw new Error(res.body.message || 'Error occurred');
-                }
-            }
-            return res.body;
-        })
+        .then(res => res.json())
         .then(data => {
             if (data.success && data.size) {
                 const newSize = data.size;
                 SIZES_DATA.push(newSize);
 
-                // Add to existing rows
                 document.querySelectorAll('#variants-tbody tr').forEach(function(tr) {
-                    const sizesContainer = tr.querySelector('.border.rounded.p-2');
+                    const sizesContainer = tr.querySelector('.border.rounded.p-2.bg-light');
                     let prefix = '';
-                    
                     const hiddenColorInput = tr.querySelector('input[name*="[color_id]"]');
                     if (hiddenColorInput) {
                         const match = hiddenColorInput.name.match(/variants\[\d+\]/);
-                        if (match) {
-                            prefix = match[0];
-                        }
+                        if (match) prefix = match[0];
                     }
-
-                    if (prefix) {
-                        appendSizeToContainer(sizesContainer, newSize, prefix, false);
-                    }
+                    if (prefix) appendSizeToContainer(sizesContainer, newSize, prefix, false);
                 });
 
-                // Add to template
-                const template = document.getElementById('new-color-row-template');
-                const templateSizesContainer = template.content.querySelector('.border.rounded.p-2');
-                appendSizeToContainer(templateSizesContainer, newSize, null, true);
-
-                // Close modal
                 const modalEl = document.getElementById('addSizeModal');
                 const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
                 modalInstance.hide();
-
-                // Reset form
                 form.reset();
             }
-        })
-        .catch(err => {
-            errorDiv.innerText = err.message;
-            errorDiv.classList.remove('d-none');
         })
         .finally(() => {
             submitBtn.disabled = false;
@@ -577,27 +506,32 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     function appendSizeToContainer(container, size, prefix, isTemplate = false) {
-        let nameCheckbox, nameStock, namePrice;
-        if (isTemplate) {
-            nameCheckbox = `__SIZE_SELECTED_${size.id}__`;
-            nameStock = `__SIZE_STOCK_${size.id}__`;
-            namePrice = `__SIZE_PRICE_${size.id}__`;
-        } else {
-            nameCheckbox = `${prefix}[sizes][${size.id}][selected]`;
-            nameStock = `${prefix}[sizes][${size.id}][stock]`;
-            namePrice = `${prefix}[sizes][${size.id}][price]`;
-        }
+        const nameCheckbox = `${prefix}[sizes][${size.id}][selected]`;
+        const nameStock    = `${prefix}[sizes][${size.id}][stock]`;
+        const namePrice    = `${prefix}[sizes][${size.id}][price]`;
+        const nameOrig     = `${prefix}[sizes][${size.id}][original_price]`;
 
         const sizeHtml = `
-            <div class="d-flex align-items-start mb-3">
-                <div class="form-check me-2 mt-1">
-                    <input class="form-check-input size-checkbox" type="checkbox" name="${nameCheckbox}" value="1">
+            <div class="size-item-row p-2 bg-white rounded border mb-2">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input size-checkbox" type="checkbox" name="${nameCheckbox}" value="1">
+                        <label class="form-check-label fw-bold text-dark me-2">${size.name}</label>
+                    </div>
+                    <div class="discount-badge-container"></div>
                 </div>
-                <div class="flex-grow-1">
-                    <div class="fw-semibold mb-1">${size.name}</div>
-                    <div class="d-flex gap-2">
+                <div class="row g-2">
+                    <div class="col-4">
+                        <label class="form-label mb-0 small text-muted">Stock</label>
                         <input type="number" class="form-control form-control-sm size-stock" name="${nameStock}" value="0" min="0" placeholder="Stock" disabled>
-                        <input type="number" step="0.01" class="form-control form-control-sm size-price" name="${namePrice}" value="" min="0" placeholder="Price (₹)" disabled>
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label mb-0 small text-muted">Selling Price (₹)</label>
+                        <input type="number" step="0.01" class="form-control form-control-sm size-price selling-price-input" name="${namePrice}" value="" min="0" placeholder="Selling ₹" disabled>
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label mb-0 small text-muted">Original Price (₹)</label>
+                        <input type="number" step="0.01" class="form-control form-control-sm size-original-price original-price-input" name="${nameOrig}" value="" min="0" placeholder="MSRP ₹" disabled>
                     </div>
                 </div>
             </div>
@@ -606,29 +540,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = sizeHtml.trim();
         const newElement = tempDiv.firstChild;
-        
         container.appendChild(newElement);
 
-        if (!isTemplate) {
-            const checkbox = newElement.querySelector('.size-checkbox');
-            const priceInput = newElement.querySelector('.size-price');
-            const stockInput = newElement.querySelector('.size-stock');
-            
-            checkbox.addEventListener('change', function() {
-                if (checkbox.checked) {
-                    priceInput.disabled = false;
-                    stockInput.disabled = false;
-                } else {
-                    priceInput.disabled = true;
-                    stockInput.disabled = true;
-                    priceInput.value = '';
-                    stockInput.value = 0;
-                }
-            });
-        }
+        bindCheckboxes(newElement);
+        bindSizeItemEvents(newElement);
     }
 
 });
 </script>
-
 @endsection

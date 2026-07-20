@@ -235,17 +235,13 @@
         @forelse($products as $product)
         <tr>
           <td>
-            @if($product->image)
-              <img src="{{ asset('storage/'.$product->image) }}" alt="{{ $product->name }}" class="prod-thumb">
-            @else
-              <div class="prod-no-img"><i class="bi bi-image"></i></div>
-            @endif
+            <img src="{{ $product->effective_image_url }}" alt="{{ $product->name }}" class="prod-thumb" style="width:46px;height:46px;object-fit:cover;border-radius:6px;">
           </td>
           <td>
             <span class="prod-name">{{ $product->name }}</span>
           </td>
-          <td style="font-weight:600; color:var(--clr-slate);">${{ number_format($product->price, 2) }}</td>
-          <td style="color:var(--clr-muted);">{{ $product->stock }}</td>
+          <td style="font-weight:600; color:var(--clr-slate);">₹{{ number_format($product->effective_price, 2) }}</td>
+          <td style="color:var(--clr-muted);">{{ $product->effective_stock }}</td>
           <td>
             @if($product->category)
               <span style="background:var(--clr-blue-dim);color:var(--clr-blue);border-radius:6px;padding:3px 10px;font-size:.74rem;font-weight:600;">

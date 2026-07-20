@@ -533,20 +533,22 @@
                 @foreach($products as $product)
 
                     @php
-                        /* ── Collection discount calculation (PRESERVED) ── */
-                        $finalPrice = $product->price;
+                        /* ── Effective Price & Original Price calculation ── */
+                        $effPrice = $product->effective_price;
+                        $effOrig  = $product->effective_original_price;
+                        $finalPrice = $effPrice;
 
                         if(isset($collection) && $collection->discount_type == 'percentage') {
-                            $finalPrice = $product->price - (($product->price * $collection->discount_value) / 100);
+                            $finalPrice = $effPrice - (($effPrice * $collection->discount_value) / 100);
                         } elseif(isset($collection) && $collection->discount_type == 'fixed') {
-                            $finalPrice = max(0, $product->price - $collection->discount_value);
+                            $finalPrice = max(0, $effPrice - $collection->discount_value);
                         }
 
-                        /* ── Discount percentage (for non-collection) ── */
-                        $hasDiscount = $product->original_price && $product->original_price > $product->price;
+                        /* ── Discount percentage ── */
+                        $hasDiscount = $effOrig && $effOrig > $effPrice;
                         $discountPct = 0;
                         if($hasDiscount) {
-                            $discountPct = round((($product->original_price - $product->price) / $product->original_price) * 100);
+                            $discountPct = round((($effOrig - $effPrice) / $effOrig) * 100);
                         }
                         $collectionDiscount = isset($collection) && $collection->discount_value;
                         
@@ -566,7 +568,7 @@
                          data-seller-id="{{ $product->seller_id ?? 'admin' }}"
                          data-price="{{ $finalPrice }}"
                          data-created-at="{{ $product->created_at ? $product->created_at->timestamp : 0 }}"
-                         data-stock="{{ $product->stock }}"
+                         data-stock="{{ $product->effective_stock }}"
                          data-rating="{{ $pRating }}"
                          data-reviews="{{ $pReviews }}"
                          data-discount="{{ $collectionDiscount ? ($collection->discount_type == 'percentage' ? $collection->discount_value : $discountPct) : $discountPct }}"
@@ -599,7 +601,7 @@
 
                                 {{-- Product Link --}}
                                 <a href="{{ url('/product-details/'.$product->id) }}{{ isset($collection) ? '?collection='.$collection->slug : '' }}" class="w-100 h-100 d-block">
-                                    <img src="{{ $product->seller_id ? asset('storage/'.$product->image) : asset('uploads/'.$product->image) }}"
+                                    <img src="{{ $product->effective_image_url }}"
                                          alt="{{ $product->name }}"
                                          class="lazy"
                                          loading="lazy">

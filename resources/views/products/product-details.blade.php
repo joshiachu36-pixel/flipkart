@@ -310,32 +310,46 @@
                   $finalPrice = max(0, $product->price - $collection->discount_value);
               }
           }
-          $variants = $product->variants()->where('status', 1)->with('color', 'sizes')->get();
+          $variants = $product->variants()->where('status', 1)->with('color', 'sizes')->orderBy('priority', 'asc')->get();
           $colors = $variants->map(function ($variant) {
               return [
-                  'variant_id' => $variant->id,
-                  'color_id'   => $variant->color->id,
-                  'name'       => $variant->color->name,
-                  'image'      => $variant->image,
-                  'price'      => $variant->price,
-                  'stock'      => $variant->stock,
+                  'variant_id'     => $variant->id,
+                  'color_id'       => $variant->color->id,
+                  'name'           => $variant->color->name,
+                  'image'          => $variant->image,
+                  'price'          => $variant->price,
+                  'original_price' => $variant->original_price,
+                  'discount'       => $variant->discount_percentage,
+                  'stock'          => $variant->stock,
                   'sizes' => $variant->sizes->map(function ($size) use ($variant) {
+                      $sPrice = (float) ($size->pivot->price ?: $variant->price);
+                      $sOrig  = (float) ($size->pivot->original_price ?: $variant->original_price);
+                      $sDisc  = 0;
+                      if ($sOrig > 0 && $sPrice > 0 && $sPrice < $sOrig) {
+                          $sDisc = round((($sOrig - $sPrice) / $sOrig) * 100);
+                      }
                       return [
-                          'id'    => $size->id,
-                          'name'  => $size->name,
-                          'stock' => $size->pivot->stock,
-                          'price' => $size->pivot->price ?? $variant->price,
+                          'id'             => $size->id,
+                          'name'           => $size->name,
+                          'stock'          => $size->pivot->stock,
+                          'price'          => $sPrice,
+                          'original_price' => $sOrig,
+                          'discount'       => $sDisc,
                       ];
                   })->toArray(),
               ];
           });
+          $defaultVarObj = $variants->first();
+          $displayPrice  = $defaultVarObj ? $defaultVarObj->price : $product->effective_price;
+          $displayOrig   = $defaultVarObj ? $defaultVarObj->original_price : $product->effective_original_price;
+          $displayDisc   = $defaultVarObj ? $defaultVarObj->discount_percentage : $product->discount_percentage;
         @endphp
 
         <div class="pd-price-block">
           @if(isset($collection) && $collection && $collection->discount_value)
             <span class="pd-price-current" id="product-price">₹{{ number_format($finalPrice, 2) }}</span>
-            <span class="pd-price-original">₹{{ number_format($product->price, 2) }}</span>
-            <span class="pd-price-off">
+            <span class="pd-price-original" id="product-original-price">₹{{ number_format($displayPrice, 2) }}</span>
+            <span class="pd-price-off" id="product-discount-badge">
               @if($collection->discount_type == 'percentage')
                 {{ $collection->discount_value }}% OFF
               @else
@@ -343,11 +357,9 @@
               @endif
             </span>
           @else
-            <span class="pd-price-current" id="product-price">₹{{ number_format($colors->first()['price'] ?? $product->price, 2) }}</span>
-            @if($product->discount_percentage > 0)
-              <span class="pd-price-original">₹{{ number_format($product->original_price, 2) }}</span>
-              <span class="pd-price-off">{{ $product->discount_percentage }}% OFF</span>
-            @endif
+            <span class="pd-price-current" id="product-price">₹{{ number_format($displayPrice, 2) }}</span>
+            <span class="pd-price-original" id="product-original-price" style="{{ $displayDisc > 0 ? '' : 'display:none;' }}">₹{{ number_format($displayOrig, 2) }}</span>
+            <span class="pd-price-off" id="product-discount-badge" style="{{ $displayDisc > 0 ? '' : 'display:none;' }}">{{ $displayDisc }}% OFF</span>
           @endif
         </div>
 
@@ -372,6 +384,8 @@
                   data-color-index="{{ $index }}"
                   data-color-image="{{ $color['image'] }}"
                   data-color-price="{{ $color['price'] }}"
+                  data-color-original-price="{{ $color['original_price'] }}"
+                  data-color-discount="{{ $color['discount'] }}"
                   data-color-stock="{{ $color['stock'] }}"
                   data-color-sizes='@json($color['sizes'])'>
                   {{ $color['name'] }}
@@ -523,13 +537,18 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        const originalPriceElement = document.getElementById('product-original-price');
+        const discountBadgeElement  = document.getElementById('product-discount-badge');
+
         colorButtons.forEach((button) => {
             variants.push({
-                variant_id: button.dataset.variantId,
-                image: button.dataset.colorImage,
-                price: Number(button.dataset.colorPrice),
-                stock: Number(button.dataset.colorStock),
-                sizes: JSON.parse(button.dataset.colorSizes || '[]'),
+                variant_id:     button.dataset.variantId,
+                image:          button.dataset.colorImage,
+                price:          Number(button.dataset.colorPrice),
+                original_price: Number(button.dataset.colorOriginalPrice || 0),
+                discount:       Number(button.dataset.colorDiscount || 0),
+                stock:          Number(button.dataset.colorStock),
+                sizes:          JSON.parse(button.dataset.colorSizes || '[]'),
             });
         });
 
@@ -538,21 +557,56 @@ document.addEventListener('DOMContentLoaded', function() {
             colorButtons[index].classList.add('active');
 
             const variant = variants[index];
-            priceElement.textContent = '₹' + Number(variant.price).toFixed(2);
+            if (priceElement) priceElement.textContent = '₹' + Number(variant.price).toFixed(2);
+
+            if (originalPriceElement && discountBadgeElement) {
+                if (variant.original_price > variant.price && variant.original_price > 0) {
+                    originalPriceElement.textContent = '₹' + Number(variant.original_price).toFixed(2);
+                    originalPriceElement.style.display = 'inline';
+                    const pct = Math.round(((variant.original_price - variant.price) / variant.original_price) * 100);
+                    discountBadgeElement.textContent = pct + '% OFF';
+                    discountBadgeElement.style.display = 'inline-block';
+                } else if (variant.discount > 0) {
+                    discountBadgeElement.textContent = variant.discount + '% OFF';
+                    discountBadgeElement.style.display = 'inline-block';
+                } else {
+                    originalPriceElement.style.display = 'none';
+                    discountBadgeElement.style.display = 'none';
+                }
+            }
+
             const sizeButtons = variant.sizes.map((size, idx) => {
-                return `<button type="button" class="pd-size-btn size-option ${idx === 0 ? 'active' : ''}" data-size-id="${size.id}" data-stock="${size.stock}" data-price="${size.price}">${size.name}</button>`;
+                return `<button type="button" class="pd-size-btn size-option ${idx === 0 ? 'active' : ''}" data-size-id="${size.id}" data-stock="${size.stock}" data-price="${size.price}" data-original-price="${size.original_price}" data-discount="${size.discount}">${size.name}</button>`;
             }).join('');
 
             sizesContainer.innerHTML = sizeButtons;
             if (variant.sizes && variant.sizes.length > 0) {
                 stockElement.textContent = variant.sizes[0].stock;
+                if (priceElement && variant.sizes[0].price > 0) {
+                    priceElement.innerHTML = '₹' + Number(variant.sizes[0].price).toFixed(2);
+                }
+                if (originalPriceElement && discountBadgeElement) {
+                    const s0Orig = Number(variant.sizes[0].original_price || 0);
+                    const s0Price = Number(variant.sizes[0].price || 0);
+                    if (s0Orig > s0Price && s0Orig > 0) {
+                        originalPriceElement.textContent = '₹' + s0Orig.toFixed(2);
+                        originalPriceElement.style.display = 'inline';
+                        const pct = Math.round(((s0Orig - s0Price) / s0Orig) * 100);
+                        discountBadgeElement.textContent = pct + '% OFF';
+                        discountBadgeElement.style.display = 'inline-block';
+                    } else if (variant.sizes[0].discount > 0) {
+                        discountBadgeElement.textContent = variant.sizes[0].discount + '% OFF';
+                        discountBadgeElement.style.display = 'inline-block';
+                    } else {
+                        originalPriceElement.style.display = 'none';
+                        discountBadgeElement.style.display = 'none';
+                    }
+                }
             } else {
                 stockElement.textContent = variant.stock ?? 0;
             }
             selectedVariantInput.value = variant.variant_id;
-            if (priceElement) {
-                priceElement.innerHTML = '₹' + Number(variant.price).toFixed(2);
-            }
+
             if (variant.sizes && variant.sizes.length > 0) {
                 selectedSizeIdInput.value = variant.sizes[0].id;
             } else {
@@ -583,8 +637,24 @@ document.addEventListener('DOMContentLoaded', function() {
                     selectedSizeIdInput.value = this.dataset.sizeId;
                     stockElement.textContent = this.dataset.stock;
                     const size = variant.sizes.find(s => s.id == this.dataset.sizeId);
-                    if (size && priceElement) {
-                        priceElement.innerHTML = '₹' + Number(size.price).toFixed(2);
+                    if (size) {
+                        if (priceElement && size.price > 0) {
+                            priceElement.innerHTML = '₹' + Number(size.price).toFixed(2);
+                        }
+                        if (originalPriceElement && discountBadgeElement) {
+                            const sOrig = Number(size.original_price || 0);
+                            const sPrice = Number(size.price || 0);
+                            if (sOrig > sPrice && sOrig > 0) {
+                                originalPriceElement.textContent = '₹' + sOrig.toFixed(2);
+                                originalPriceElement.style.display = 'inline';
+                                const pct = Math.round(((sOrig - sPrice) / sOrig) * 100);
+                                discountBadgeElement.textContent = pct + '% OFF';
+                                discountBadgeElement.style.display = 'inline-block';
+                            } else {
+                                originalPriceElement.style.display = 'none';
+                                discountBadgeElement.style.display = 'none';
+                            }
+                        }
                     }
                     updateAddToCartState();
                 });

@@ -7,9 +7,23 @@ use Illuminate\Database\Eloquent\Model;
 class Size extends Model
 {
     protected $fillable = [
+        'seller_id',
         'name',
         'status',
     ];
+
+    public function seller()
+    {
+        return $this->belongsTo(Seller::class);
+    }
+
+    public function scopeForSeller($query, $sellerId)
+    {
+        return $query->where(function ($q) use ($sellerId) {
+            $q->where('seller_id', $sellerId)
+              ->orWhereNull('seller_id');
+        });
+    }
 
   public function productVariants()
 {
@@ -19,7 +33,7 @@ class Size extends Model
         'size_id',
         'product_variant_id'
     )
-    ->withPivot('price', 'stock')
+    ->withPivot('price', 'original_price', 'stock')
     ->withTimestamps();
 }
 

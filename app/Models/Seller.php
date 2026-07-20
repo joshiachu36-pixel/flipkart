@@ -68,4 +68,24 @@ class Seller extends Authenticatable
     {
         return $this->hasMany(Product::class);
     }
+
+    public function colors()
+    {
+        return $this->hasMany(Color::class);
+    }
+
+    public function sizes()
+    {
+        return $this->hasMany(Size::class);
+    }
+
+    public function documents()
+    {
+        return $this->hasMany(SellerDocument::class);
+    }
+
+    public function activities()
+    {
+        return $this->hasMany(SellerActivity::class)->latest();
+    }
 }

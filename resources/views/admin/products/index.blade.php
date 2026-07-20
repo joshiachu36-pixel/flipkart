@@ -97,24 +97,10 @@
                         <tr>
                             {{-- Image --}}
                             <td class="text-center">
-                                @php
-                                    $imgSrc = $product->image
-                                        ? (Str::startsWith($product->image, 'products/')
-                                            ? asset('storage/' . $product->image)
-                                            : asset('uploads/' . $product->image))
-                                        : null;
-                                @endphp
-                                @if($imgSrc)
-                                    <img src="{{ $imgSrc }}"
-                                         alt="{{ $product->name }}"
-                                         class="rounded"
-                                         style="width:54px;height:54px;object-fit:cover;">
-                                @else
-                                    <div class="bg-light rounded d-flex align-items-center justify-content-center"
-                                         style="width:54px;height:54px;">
-                                        <i class="bi bi-image text-muted fs-5"></i>
-                                    </div>
-                                @endif
+                                <img src="{{ $product->effective_image_url }}"
+                                     alt="{{ $product->name }}"
+                                     class="rounded border shadow-sm"
+                                     style="width:54px;height:54px;object-fit:cover;">
                             </td>
 
                             {{-- Product Name --}}
@@ -132,10 +118,10 @@
                             <td>{{ $product->category->name ?? '—' }}</td>
 
                             {{-- Price --}}
-                            <td>₹{{ number_format($product->price, 2) }}</td>
+                            <td class="fw-bold text-success">₹{{ number_format($product->effective_price, 2) }}</td>
 
                             {{-- Stock --}}
-                            <td>{{ $product->stock }}</td>
+                            <td><span class="fw-semibold">{{ $product->effective_stock }}</span></td>
 
                             {{-- Submitted Date --}}
                             <td>

@@ -10,10 +10,25 @@ class ProductVariant extends Model
         'product_id',
         'color_id',
         'price',
+        'original_price',
         'image',
         'stock',
         'status',
+        'priority',
+        'sku',
     ];
+
+    public function getDiscountPercentageAttribute()
+    {
+        $originalPrice = (float) $this->original_price;
+        $sellingPrice  = (float) $this->price;
+
+        if ($originalPrice > 0 && $sellingPrice < $originalPrice) {
+            return round((($originalPrice - $sellingPrice) / $originalPrice) * 100);
+        }
+
+        return 0;
+    }
 
     public function product()
     {
@@ -33,7 +48,7 @@ class ProductVariant extends Model
         'product_variant_id',
         'size_id'
     )
-    ->withPivot('price', 'stock')
+    ->withPivot('price', 'original_price', 'stock')
     ->withTimestamps();
 }
 }

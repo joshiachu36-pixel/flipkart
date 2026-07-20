@@ -13,7 +13,7 @@ class SellerProductController extends Controller
     public function index()
     {
         $seller   = Auth::guard('seller')->user();
-        $products = $seller->products()->with(['category', 'brand'])->paginate(10);
+        $products = $seller->products()->with(['category', 'brand', 'variants'])->paginate(10);
         return view('seller.products.index', compact('products'));
     }
 
@@ -28,10 +28,10 @@ class SellerProductController extends Controller
         $validated = $request->validate([
             'name'           => 'required|string|max:255',
             'description'    => 'required|string',
-            'price'          => 'required|numeric',
-            'original_price' => 'nullable|numeric',
             'category_id'    => 'required|exists:categories,id',
-            'stock'          => 'required|integer',
+            'price'          => 'nullable|numeric',
+            'original_price' => 'nullable|numeric',
+            'stock'          => 'nullable|integer',
             'image'          => 'nullable|image',
         ]);
 
@@ -41,21 +41,23 @@ class SellerProductController extends Controller
         }
 
         $seller = Auth::guard('seller')->user();
-        $seller->products()->create([
+        $product = $seller->products()->create([
             'name'            => $validated['name'],
             'description'     => $validated['description'],
-            'price'           => $validated['price'],
+            'price'           => $validated['price'] ?? 0,
             'original_price'  => $validated['original_price'] ?? 0,
             'category_id'     => $validated['category_id'],
-            'stock'           => $validated['stock'],
+            'stock'           => $validated['stock'] ?? 0,
             'image'           => $imagePath,
             'approval_status' => 'Pending',
             'status'          => '1',
         ]);
 
+        \App\Models\SellerActivity::log($seller->id, 'Created Product', "Created product: {$product->name}");
+
         return redirect()
-            ->route('seller.products.variants', $seller->products()->latest()->first())
-            ->with('success', 'Product submitted for review. Configure its variants while we review it.');
+            ->route('seller.products.variants.manage', $product)
+            ->with('success', 'Product details saved! Now configure your product variants below.');
     }
 
     public function edit(Product $product)
@@ -100,10 +102,10 @@ class SellerProductController extends Controller
         $validated = $request->validate([
             'name'           => 'required|string|max:255',
             'description'    => 'required|string',
-            'price'          => 'required|numeric',
-            'original_price' => 'nullable|numeric',
             'category_id'    => 'required|exists:categories,id',
-            'stock'          => 'required|integer',
+            'price'          => 'nullable|numeric',
+            'original_price' => 'nullable|numeric',
+            'stock'          => 'nullable|integer',
             'image'          => 'nullable|image',
         ]);
 
@@ -118,6 +120,8 @@ class SellerProductController extends Controller
         $validated['rejected_at']      = null;
 
         $product->update($validated);
+
+        \App\Models\SellerActivity::log($product->seller_id, 'Re-submitted Product', "Re-submitted product for review: {$product->name}");
 
         return redirect()
             ->route('seller.products.index')

@@ -4,6 +4,14 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Seller;
+use App\Models\Product;
+use App\Models\ProductVariant;
+use App\Models\Color;
+use App\Models\Size;
+use App\Models\OrderItem;
+use App\Models\SellerDocument;
+use App\Models\SellerActivity;
+use Illuminate\Support\Facades\DB;
 
 class AdminSellerController extends Controller
 {
@@ -42,13 +50,107 @@ class AdminSellerController extends Controller
         return view('admin.sellers.index', compact('sellers', 'counts'));
     }
 
-    // ── Show — full seller application review page ──────────────────────────
+    // ── Show — full seller review page with 8 Bootstrap tabs ────────────────
 
     public function show(Seller $seller)
     {
-        $seller->loadCount('products');
+        $seller->loadCount(['products', 'colors', 'sizes', 'documents', 'activities']);
 
-        return view('admin.sellers.show', compact('seller'));
+        // 1. Seller Products
+        $products = Product::where('seller_id', $seller->id)
+            ->with(['category', 'variants'])
+            ->latest()
+            ->get();
+
+        // 2. Seller Variants
+        $productIds = $products->pluck('id');
+        $variants = ProductVariant::whereIn('product_id', $productIds)
+            ->with(['product', 'color', 'sizes'])
+            ->orderBy('priority', 'asc')
+            ->get();
+
+        // 3. Seller Colors & Sizes
+        $colors = Color::where('seller_id', $seller->id)->latest()->get();
+        $sizes  = Size::where('seller_id', $seller->id)->latest()->get();
+
+        // 4. Seller Orders & Revenue Metrics
+        $orderItems = OrderItem::whereIn('product_id', $productIds)->get();
+        $totalOrdersCount = $orderItems->pluck('order_id')->unique()->count();
+        $totalRevenue     = $orderItems->sum(function ($item) {
+            return $item->price * $item->quantity;
+        });
+
+        // Best selling product
+        $bestSellingItem = OrderItem::whereIn('product_id', $productIds)
+            ->select('product_id', DB::raw('SUM(quantity) as total_qty'))
+            ->groupBy('product_id')
+            ->orderByDesc('total_qty')
+            ->first();
+        $bestSellingProduct = $bestSellingItem ? Product::find($bestSellingItem->product_id) : null;
+
+        // Inventory status
+        $lowStockProducts = $products->filter(fn($p) => $p->stock > 0 && $p->stock <= 5);
+        $outOfStockProducts = $products->filter(fn($p) => $p->stock == 0);
+
+        // Statistics Summary Cards
+        $stats = [
+            'total_products'   => $products->count(),
+            'approved_products'=> $products->where('approval_status', 'Approved')->count(),
+            'pending_products' => $products->where('approval_status', 'Pending')->count(),
+            'rejected_products'=> $products->where('approval_status', 'Rejected')->count(),
+            'total_variants'   => $variants->count(),
+            'total_colors'     => $colors->count(),
+            'total_sizes'      => $sizes->count(),
+            'total_orders'     => $totalOrdersCount,
+            'total_revenue'    => $totalRevenue,
+            'low_stock_count'  => $lowStockProducts->count(),
+            'out_of_stock_count'=> $outOfStockProducts->count(),
+            'best_selling_product' => $bestSellingProduct ? $bestSellingProduct->name : 'N/A',
+        ];
+
+        // 5. Documents & Activities
+        $documents  = SellerDocument::where('seller_id', $seller->id)->latest()->get();
+        $activities = SellerActivity::where('seller_id', $seller->id)->latest()->get();
+
+        return view('admin.sellers.show', compact(
+            'seller',
+            'products',
+            'variants',
+            'colors',
+            'sizes',
+            'stats',
+            'documents',
+            'activities',
+            'lowStockProducts',
+            'outOfStockProducts'
+        ));
+    }
+
+    // ── Upload Document ─────────────────────────────────────────────────────
+
+    public function storeDocument(Request $request, Seller $seller)
+    {
+        $validated = $request->validate([
+            'document_type' => 'required|string|max:100',
+            'document_name' => 'required|string|max:255',
+            'document_file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5000',
+            'notes'         => 'nullable|string',
+        ]);
+
+        $filePath = $request->file('document_file')->store('seller-documents', 'public');
+
+        SellerDocument::create([
+            'seller_id'     => $seller->id,
+            'document_type' => $validated['document_type'],
+            'document_name' => $validated['document_name'],
+            'file_path'     => $filePath,
+            'status'        => 'Approved',
+            'notes'         => $validated['notes'] ?? null,
+        ]);
+
+        SellerActivity::log($seller->id, 'Document Uploaded', "Uploaded document: {$validated['document_name']} ({$validated['document_type']})");
+
+        return back()->with('success', 'Document uploaded successfully.');
     }
 
     // ── Approve — activate seller account ───────────────────────────────────
@@ -66,6 +168,8 @@ class AdminSellerController extends Controller
             'suspension_reason' => null,
             'suspended_at'      => null,
         ]);
+
+        SellerActivity::log($seller->id, 'Account Approved', 'Seller application was approved by Admin.');
 
         $this->notifySeller($seller, 'approved',
             "Congratulations! Your seller application for \"{$seller->business_name}\" has been approved. You now have full access to the Seller Dashboard."
@@ -90,6 +194,8 @@ class AdminSellerController extends Controller
             'rejection_reason' => $validated['rejection_reason'],
             'rejected_at'      => now(),
         ]);
+
+        SellerActivity::log($seller->id, 'Account Rejected', "Seller application rejected. Reason: {$validated['rejection_reason']}");
 
         $this->notifySeller($seller, 'rejected',
             "Your seller application has been rejected. Reason: {$validated['rejection_reason']}"
@@ -116,6 +222,8 @@ class AdminSellerController extends Controller
             'suspended_at'      => now(),
         ]);
 
+        SellerActivity::log($seller->id, 'Account Suspended', "Seller account suspended." . ($validated['suspension_reason'] ? " Reason: {$validated['suspension_reason']}" : ''));
+
         $this->notifySeller($seller, 'suspended',
             "Your seller account has been suspended." .
             ($validated['suspension_reason'] ? " Reason: {$validated['suspension_reason']}" : '')
@@ -137,6 +245,8 @@ class AdminSellerController extends Controller
             'suspension_reason' => null,
             'suspended_at'      => null,
         ]);
+
+        SellerActivity::log($seller->id, 'Account Restored', 'Seller account restored to Approved.');
 
         $this->notifySeller($seller, 'restored',
             "Your seller account has been restored. You now have full access to the Seller Dashboard again."

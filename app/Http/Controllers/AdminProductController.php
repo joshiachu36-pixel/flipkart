@@ -14,7 +14,7 @@ class AdminProductController extends Controller
 
     public function index(Request $request)
     {
-        $query = Product::with(['seller', 'category'])
+        $query = Product::with(['seller', 'category', 'variants'])
             ->whereNotNull('seller_id');
 
         if ($request->filled('status') && in_array($request->status, ['Pending', 'Approved', 'Rejected'])) {

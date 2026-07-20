@@ -255,6 +255,16 @@
             <span class="nav-icon"><i class="bi bi-box-seam"></i></span>
             My Products
           </a>
+          <a href="{{ route('seller.colors.index') }}"
+             class="{{ request()->routeIs('seller.colors.*') ? 'active' : '' }}">
+            <span class="nav-icon"><i class="bi bi-palette"></i></span>
+            My Colors
+          </a>
+          <a href="{{ route('seller.sizes.index') }}"
+             class="{{ request()->routeIs('seller.sizes.*') ? 'active' : '' }}">
+            <span class="nav-icon"><i class="bi bi-ruler"></i></span>
+            My Sizes
+          </a>
           <a href="{{ route('seller.reports.index') }}"
              class="{{ request()->routeIs('seller.reports.*') ? 'active' : '' }}">
             <span class="nav-icon"><i class="bi bi-bar-chart-line-fill"></i></span>

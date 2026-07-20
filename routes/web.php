@@ -219,6 +219,10 @@ Route::prefix('seller')->name('seller.')->middleware(['seller'])->group(function
     Route::get('/reports/download', [DownloadCenterController::class, 'sellerIndex'])->name('reports.download');
     Route::get('/reports/download/generate', [DownloadCenterController::class, 'sellerDownload'])->name('reports.download-generate');
 
+    // Seller Catalog Management (Colors & Sizes)
+    Route::resource('colors', \App\Http\Controllers\SellerColorController::class);
+    Route::resource('sizes', \App\Http\Controllers\SellerSizeController::class);
+
     // Seller Products (destroy is included — seller can delete their own products)
     Route::resource('products', SellerProductController::class)->except(['show']);
 
@@ -240,6 +244,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/sellers', [AdminSellerController::class, 'index'])->name('sellers.index');
     Route::get('/sellers/{seller}', [AdminSellerController::class, 'show'])->name('sellers.show');
+    Route::post('/sellers/{seller}/documents', [AdminSellerController::class, 'storeDocument'])->name('sellers.documents.store');
     Route::post('/sellers/{seller}/update-status', [AdminSellerController::class, 'updateStatus'])->name('sellers.update');
     Route::post('/sellers/{seller}/approve', [AdminSellerController::class, 'approve'])->name('sellers.approve');
     Route::post('/sellers/{seller}/reject', [AdminSellerController::class, 'reject'])->name('sellers.reject');

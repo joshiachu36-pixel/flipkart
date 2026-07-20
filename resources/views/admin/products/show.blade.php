@@ -388,15 +388,7 @@
       <div class="rv-card">
         <div class="rv-card-hdr"><i class="bi bi-image-fill"></i> Product Image</div>
         <div class="rv-card-body">
-          @if($product->image)
-            <img src="{{ Str::startsWith($product->image, 'products/') ? asset('storage/'.$product->image) : asset('uploads/'.$product->image) }}"
-                 alt="{{ $product->name }}" class="main-img">
-          @else
-            <div class="no-img-placeholder">
-              <i class="bi bi-image"></i>
-              <span>No image provided</span>
-            </div>
-          @endif
+          <img src="{{ $product->effective_image_url }}" alt="{{ $product->name }}" class="main-img">
         </div>
       </div>
 
@@ -519,13 +511,13 @@
           </div>
           <div class="detail-row">
             <span class="detail-label">Selling Price</span>
-            <span class="detail-val" style="font-weight:700;color:#16a34a;font-size:1rem;">₹{{ number_format($product->price, 2) }}</span>
+            <span class="detail-val" style="font-weight:700;color:#16a34a;font-size:1rem;">₹{{ number_format($product->effective_price, 2) }}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Original Price</span>
             <span class="detail-val">
-              @if($product->original_price)
-                <s style="color:var(--clr-muted);">₹{{ number_format($product->original_price, 2) }}</s>
+              @if($product->effective_original_price > 0)
+                <s style="color:var(--clr-muted);">₹{{ number_format($product->effective_original_price, 2) }}</s>
                 @if($product->discount_percentage > 0)
                   <span style="background:#dcfce7;color:#16a34a;border-radius:4px;padding:1px 7px;font-size:.75rem;font-weight:700;margin-left:4px;">
                     {{ $product->discount_percentage }}% OFF
@@ -539,10 +531,10 @@
           <div class="detail-row">
             <span class="detail-label">Stock</span>
             <span class="detail-val">
-              @if($product->stock > 10)
-                <span style="color:#16a34a;font-weight:600;">{{ $product->stock }} units</span>
-              @elseif($product->stock > 0)
-                <span style="color:#d97706;font-weight:600;">{{ $product->stock }} units (low stock)</span>
+              @if($product->effective_stock > 10)
+                <span style="color:#16a34a;font-weight:600;">{{ $product->effective_stock }} units</span>
+              @elseif($product->effective_stock > 0)
+                <span style="color:#d97706;font-weight:600;">{{ $product->effective_stock }} units (low stock)</span>
               @else
                 <span style="color:#dc2626;font-weight:600;">Out of stock</span>
               @endif
