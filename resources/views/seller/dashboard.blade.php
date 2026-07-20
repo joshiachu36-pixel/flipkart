@@ -74,7 +74,6 @@
   .sc-amber .stat-icon { background: rgba(217,119,6,0.10);   color: #d97706; }
   .sc-red   .stat-icon { background: rgba(220,38,38,0.10);   color: #dc2626; }
 
-  .stat-body {}
   .stat-val {
     font-size: 2rem; font-weight: 800; line-height: 1.1;
     color: var(--clr-slate); letter-spacing: -0.03em;
@@ -144,7 +143,130 @@
   .ql-item:hover i { color: var(--clr-blue); }
 </style>
 
-{{-- Notification Alerts --}}
+{{-- Account Status Notifications --}}
+@if(!empty($accountNotifications))
+  <div style="margin-bottom: 20px;">
+    @foreach($accountNotifications as $notif)
+      <div class="alert alert-info alert-dismissible fade show" role="alert">
+        <i class="bi bi-info-circle-fill"></i>
+        <div>{{ $notif['message'] }}</div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    @endforeach
+  </div>
+@endif
+
+@php
+  $sellerUser = $seller ?? auth()->guard('seller')->user();
+@endphp
+
+{{-- ── 1. PENDING STATUS NOTICE ────────────────────────────────── --}}
+@if($sellerUser->isPending())
+<div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; overflow: hidden;">
+    <div class="card-header bg-warning text-dark py-3 px-4 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-hourglass-split fs-4"></i>
+            <h5 class="mb-0 fw-bold">Registration Under Review</h5>
+        </div>
+        <span class="badge bg-dark px-3 py-2 text-uppercase letter-spacing-1">Status: Pending</span>
+    </div>
+    <div class="card-body p-4 bg-white">
+        <div class="row align-items-center g-4">
+            <div class="col-md-8">
+                <h4 class="fw-bold text-dark mb-2">Welcome, {{ $sellerUser->business_name }}!</h4>
+                <p class="text-secondary mb-3">
+                    Thank you for submitting your seller registration details. Our marketplace administration team is currently reviewing your account application.
+                </p>
+                <div class="p-3 bg-light rounded-3 border mb-3">
+                    <h6 class="fw-semibold text-dark mb-2"><i class="bi bi-shield-check me-2 text-warning"></i>What happens next?</h6>
+                    <ul class="mb-0 text-muted small ps-3">
+                        <li>The marketplace admin verifies your business, contact, tax (GST/PAN), and banking details.</li>
+                        <li>Once approved, your seller features (product management, orders, reports) will be instantly unlocked.</li>
+                        <li>If any document or information requires correction, you will be notified here with details on how to resubmit.</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4 text-center border-start ps-md-4">
+                <div class="p-3">
+                    <i class="bi bi-file-earmark-person text-warning display-4 d-block mb-2"></i>
+                    <span class="small text-muted d-block">Submitted on</span>
+                    <strong class="text-dark">{{ $sellerUser->created_at->format('M d, Y') }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- ── 2. REJECTED STATUS NOTICE & RESUBMIT WORKFLOW ──────────── --}}
+@elseif($sellerUser->isRejected())
+<div class="card shadow border-danger mb-4" style="border-radius: 12px; overflow: hidden;">
+    <div class="card-header bg-danger text-white py-3 px-4 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-x-circle-fill fs-4"></i>
+            <h5 class="mb-0 fw-bold">Seller Registration Rejected</h5>
+        </div>
+        <span class="badge bg-white text-danger px-3 py-2 text-uppercase fw-bold">Action Required</span>
+    </div>
+    <div class="card-body p-4 bg-white">
+        <div class="alert alert-danger border border-danger-subtle p-3 mb-4" style="border-radius: 8px;">
+            <div class="d-flex align-items-start gap-2">
+                <i class="bi bi-exclamation-triangle-fill fs-5 text-danger flex-shrink-0 mt-1"></i>
+                <div>
+                    <h6 class="fw-bold mb-1">Your seller registration has been rejected by the marketplace admin.</h6>
+                    <p class="mb-2 small">Please review the specific rejection reasons listed below, correct your business information, and resubmit your application.</p>
+                </div>
+            </div>
+            <hr class="my-2 border-danger-subtle">
+            <div class="bg-white p-3 rounded border border-danger-subtle mt-2">
+                <span class="text-uppercase text-danger fw-bold small d-block mb-1"><i class="bi bi-chat-left-text me-1"></i>Admin Rejection Reason:</span>
+                <p class="mb-0 fw-semibold text-dark" style="white-space: pre-line;">{{ $sellerUser->rejection_reason ?: 'No specific reason provided.' }}</p>
+                @if($sellerUser->rejected_at)
+                    <small class="text-muted d-block mt-2"><i class="bi bi-clock me-1"></i>Rejected on {{ $sellerUser->rejected_at->format('M d, Y h:i A') }}</small>
+                @endif
+            </div>
+        </div>
+
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 p-3 bg-light rounded border">
+            <div>
+                <h6 class="fw-bold mb-1 text-dark">Ready to fix your application?</h6>
+                <p class="mb-0 text-muted small">Click the button to open your application editor with pre-filled details.</p>
+            </div>
+            <a href="{{ route('seller.resubmit') }}" class="btn btn-danger btn-lg px-4 fw-bold shadow-sm">
+                <i class="bi bi-pencil-square me-2"></i>Resubmit Application
+            </a>
+        </div>
+    </div>
+</div>
+
+{{-- ── 3. SUSPENDED STATUS NOTICE ──────────────────────────────── --}}
+@elseif($sellerUser->isSuspended())
+<div class="card shadow border-secondary mb-4" style="border-radius: 12px; overflow: hidden;">
+    <div class="card-header bg-secondary text-white py-3 px-4 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-slash-circle-fill fs-4"></i>
+            <h5 class="mb-0 fw-bold">Seller Account Suspended</h5>
+        </div>
+        <span class="badge bg-dark px-3 py-2 text-uppercase">Status: Suspended</span>
+    </div>
+    <div class="card-body p-4 bg-white">
+        <div class="alert alert-secondary border p-3 mb-3">
+            <h6 class="fw-bold mb-1"><i class="bi bi-exclamation-octagon-fill me-2 text-secondary"></i>Your seller privileges have been temporarily suspended.</h6>
+            <p class="mb-0 small text-muted">You are unable to add new products or manage existing inventory while suspended.</p>
+            @if($sellerUser->suspension_reason)
+                <div class="bg-white p-3 rounded border mt-3">
+                    <strong class="text-secondary small text-uppercase d-block mb-1">Reason for Suspension:</strong>
+                    <p class="mb-0 text-dark fw-semibold">{{ $sellerUser->suspension_reason }}</p>
+                </div>
+            @endif
+        </div>
+        <p class="text-muted small mb-0">If you believe this is an error or would like to request restoration, please contact marketplace administration support.</p>
+    </div>
+</div>
+
+{{-- ── 4. APPROVED SELLER DASHBOARD (ORIGINAL DASHBOARD) ────────── --}}
+@else
+
+{{-- Product Notification Alerts --}}
 @if(!empty($notifications))
   <div style="margin-bottom: 20px;">
     @foreach($notifications as $notif)
@@ -175,7 +297,7 @@
 <div class="dash-header">
   <div class="dash-header-left">
     <h1>Dashboard Overview</h1>
-    <p>Welcome back, <strong>{{ auth()->guard('seller')->user()->business_name }}</strong> — here's your store summary.</p>
+    <p>Welcome back, <strong>{{ $sellerUser->business_name }}</strong> — here's your store summary.</p>
   </div>
 </div>
 
@@ -239,8 +361,7 @@
 
 {{-- Rejected Products — action required --}}
 @php
-  $seller = auth()->guard('seller')->user();
-  $rejectedProducts = $seller->products()
+  $rejectedProducts = $sellerUser->products()
       ->where('approval_status', 'Rejected')
       ->with('category')
       ->latest()
@@ -347,5 +468,6 @@
 </div>
 @endif
 
-@endsection
+@endif
 
+@endsection

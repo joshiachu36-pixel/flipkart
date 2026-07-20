@@ -51,6 +51,11 @@ class SellerAuthController extends Controller
             'status'               => 'Pending',
         ]);
 
+        // Notify admin about new seller application
+        $this->notifyAdmin('new_application',
+            "New seller application received from \"{$seller->business_name}\" ({$seller->owner_name})."
+        );
+
         return redirect()->route('seller.login')->with('success', 'Registration successful. Your account is pending admin approval.');
     }
 
@@ -82,5 +87,77 @@ class SellerAuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         return redirect()->route('seller.login');
+    }
+
+    // ── Resubmit Application ────────────────────────────────────────────────
+
+    public function showResubmit()
+    {
+        $seller = Auth::guard('seller')->user();
+
+        if (!$seller->isRejected()) {
+            return redirect()->route('seller.dashboard')
+                ->with('error', 'You can only resubmit when your application has been rejected.');
+        }
+
+        return view('seller.auth.resubmit', compact('seller'));
+    }
+
+    public function resubmit(Request $request)
+    {
+        $seller = Auth::guard('seller')->user();
+
+        if (!$seller->isRejected()) {
+            return redirect()->route('seller.dashboard')
+                ->with('error', 'You can only resubmit when your application has been rejected.');
+        }
+
+        $validated = $request->validate([
+            'business_name'        => 'required|string|max:255',
+            'owner_name'           => 'required|string|max:255',
+            'gst_number'           => 'nullable|string|max:255',
+            'pan_number'           => 'nullable|string|max:255',
+            'business_address'     => 'required|string',
+            'business_logo'        => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'bank_name'            => 'nullable|string|max:255',
+            'bank_account_number'  => 'nullable|string|max:255',
+            'ifsc_code'            => 'nullable|string|max:255',
+        ]);
+
+        // Handle logo upload — preserve existing if no new one provided
+        if ($request->hasFile('business_logo')) {
+            // Delete old logo
+            if ($seller->business_logo) {
+                Storage::disk('public')->delete($seller->business_logo);
+            }
+            $validated['business_logo'] = $request->file('business_logo')->store('logos', 'public');
+        }
+
+        // Reset status back to Pending and clear rejection data
+        $validated['status']           = 'Pending';
+        $validated['rejection_reason'] = null;
+        $validated['rejected_at']      = null;
+
+        $seller->update($validated);
+
+        // Notify admin about resubmission
+        $this->notifyAdmin('resubmission',
+            "Seller \"{$seller->business_name}\" ({$seller->owner_name}) has resubmitted their application for review."
+        );
+
+        return redirect()->route('seller.dashboard')
+            ->with('success', 'Your application has been resubmitted successfully. It is now under admin review.');
+    }
+
+    // ── Private Helpers ─────────────────────────────────────────────────────
+
+    private function notifyAdmin(string $type, string $message): void
+    {
+        $key      = 'admin_seller_notification';
+        $existing = cache()->get($key, []);
+
+        $existing[] = ['type' => $type, 'message' => $message];
+
+        cache()->put($key, $existing, now()->addDays(7));
     }
 }

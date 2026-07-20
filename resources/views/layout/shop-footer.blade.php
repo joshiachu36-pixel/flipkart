@@ -38,7 +38,7 @@
                 <h6 style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:rgba(255,255,255,.45);margin-bottom:18px;">Quick Links</h6>
                 <ul class="list-unstyled" style="display:flex;flex-direction:column;gap:10px;">
                     <li>
-                        <a href="/" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:.86rem;transition:color .18s;display:flex;align-items:center;gap:6px;"
+                        <a href="/shop" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:.86rem;transition:color .18s;display:flex;align-items:center;gap:6px;"
                            onmouseover="this.style.color='#2874f0'" onmouseout="this.style.color='rgba(255,255,255,.7)'">
                             <i class="bi bi-house" style="font-size:.8rem;"></i>Home
                         </a>

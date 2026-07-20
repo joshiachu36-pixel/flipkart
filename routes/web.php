@@ -203,17 +203,21 @@ Route::prefix('seller')->name('seller.')->group(function () {
     Route::post('/login', [SellerAuthController::class, 'login'])->name('login.store');
 });
 
-// --- Seller Protected Routes ---
-Route::prefix('seller')->name('seller.')->middleware(['seller'])->group(function () {
+// --- Seller Auth-Only Routes (any logged-in seller, regardless of status) ---
+Route::prefix('seller')->name('seller.')->middleware(['seller:auth-only'])->group(function () {
     Route::get('/dashboard', [SellerDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/resubmit', [SellerAuthController::class, 'showResubmit'])->name('resubmit');
+    Route::post('/resubmit', [SellerAuthController::class, 'resubmit'])->name('resubmit.store');
+    Route::post('/logout', [SellerAuthController::class, 'logout'])->name('logout');
+});
 
+// --- Seller Protected Routes (Approved sellers only) ---
+Route::prefix('seller')->name('seller.')->middleware(['seller'])->group(function () {
     // ── Seller Reports (existing + new: export PDF, download center) ──────────
     Route::get('/reports', [SellerReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/export-pdf', [SellerReportController::class, 'exportPdf'])->name('reports.export-pdf');
     Route::get('/reports/download', [DownloadCenterController::class, 'sellerIndex'])->name('reports.download');
     Route::get('/reports/download/generate', [DownloadCenterController::class, 'sellerDownload'])->name('reports.download-generate');
-
-    Route::post('/logout', [SellerAuthController::class, 'logout'])->name('logout');
 
     // Seller Products (destroy is included — seller can delete their own products)
     Route::resource('products', SellerProductController::class)->except(['show']);
@@ -235,7 +239,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
 // --- Admin Marketplace Routes ---
 Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/sellers', [AdminSellerController::class, 'index'])->name('sellers.index');
+    Route::get('/sellers/{seller}', [AdminSellerController::class, 'show'])->name('sellers.show');
     Route::post('/sellers/{seller}/update-status', [AdminSellerController::class, 'updateStatus'])->name('sellers.update');
+    Route::post('/sellers/{seller}/approve', [AdminSellerController::class, 'approve'])->name('sellers.approve');
+    Route::post('/sellers/{seller}/reject', [AdminSellerController::class, 'reject'])->name('sellers.reject');
+    Route::post('/sellers/{seller}/suspend', [AdminSellerController::class, 'suspend'])->name('sellers.suspend');
+    Route::post('/sellers/{seller}/restore', [AdminSellerController::class, 'restore'])->name('sellers.restore');
 
     // Product Approval — full index + legacy pending redirect + new workflow
     Route::get('/products', [AdminProductController::class, 'index'])->name('products.index');
