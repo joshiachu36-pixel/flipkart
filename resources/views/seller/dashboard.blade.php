@@ -236,4 +236,116 @@
     </a>
   </div>
 </div>
+
+{{-- Rejected Products — action required --}}
+@php
+  $seller = auth()->guard('seller')->user();
+  $rejectedProducts = $seller->products()
+      ->where('approval_status', 'Rejected')
+      ->with('category')
+      ->latest()
+      ->get();
+@endphp
+
+@if($rejectedProducts->isNotEmpty())
+<div style="margin-top:24px;">
+  <div style="
+    background: #fff;
+    border-radius: 10px;
+    border: 1.5px solid #fca5a5;
+    box-shadow: 0 2px 12px rgba(220,38,38,.08);
+    overflow: hidden;
+  ">
+    {{-- Header --}}
+    <div style="
+      background: linear-gradient(135deg, #7f1d1d, #dc2626);
+      padding: 16px 22px;
+      display: flex; align-items: center; gap: 10px;
+    ">
+      <i class="bi bi-exclamation-triangle-fill" style="color:#fbbf24;font-size:1.1rem;"></i>
+      <div>
+        <p style="font-size:.9rem;font-weight:700;color:#fff;margin:0;">
+          Action Required — {{ $rejectedProducts->count() }} Product{{ $rejectedProducts->count() > 1 ? 's' : '' }} Rejected
+        </p>
+        <p style="font-size:.75rem;color:rgba(255,255,255,.75);margin:2px 0 0;">
+          Please review the admin feedback and re-upload your products.
+        </p>
+      </div>
+    </div>
+
+    {{-- List --}}
+    <div style="padding: 6px 0;">
+      @foreach($rejectedProducts as $rp)
+      <div style="
+        padding: 16px 22px;
+        border-bottom: 1px solid #fee2e2;
+        display: flex; align-items: flex-start; gap: 14px;
+      ">
+        {{-- Thumbnail --}}
+        @if($rp->image)
+          <img src="{{ asset('storage/'.$rp->image) }}"
+               alt="{{ $rp->name }}"
+               style="width:50px;height:50px;object-fit:cover;border-radius:7px;border:1px solid #fecaca;flex-shrink:0;">
+        @else
+          <div style="width:50px;height:50px;background:#fef2f2;border:1px solid #fecaca;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fca5a5;flex-shrink:0;">
+            <i class="bi bi-image" style="font-size:1.2rem;"></i>
+          </div>
+        @endif
+
+        {{-- Details --}}
+        <div style="flex:1;min-width:0;">
+          <p style="font-weight:700;color:#1e293b;font-size:.9rem;margin:0 0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            {{ $rp->name }}
+          </p>
+          @if($rp->category)
+            <span style="font-size:.72rem;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 7px;color:#64748b;font-weight:600;">
+              {{ $rp->category->name }}
+            </span>
+          @endif
+          @if($rp->rejection_reason)
+            <div style="
+              margin-top:8px;
+              background:#fef2f2; border:1px solid #fecaca;
+              border-left:3px solid #dc2626;
+              border-radius:5px; padding:8px 12px;
+              font-size:.8rem; color:#7f1d1d; line-height:1.55;
+            ">
+              <strong style="font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;color:#dc2626;">
+                <i class="bi bi-chat-left-text-fill me-1"></i>Admin Reason:
+              </strong><br>
+              {{ $rp->rejection_reason }}
+            </div>
+          @endif
+          @if($rp->rejected_at)
+            <p style="font-size:.7rem;color:#94a3b8;margin:6px 0 0;">
+              <i class="bi bi-clock me-1"></i>Rejected {{ $rp->rejected_at->diffForHumans() }}
+            </p>
+          @endif
+        </div>
+
+        {{-- Re-upload button --}}
+        <div style="flex-shrink:0;">
+          <a href="{{ route('seller.products.edit', $rp) }}"
+             style="
+               display:inline-flex;align-items:center;gap:6px;
+               background:#d97706;color:#fff;border:none;
+               border-radius:7px;padding:8px 14px;
+               font-size:.78rem;font-weight:700;
+               text-decoration:none;
+               box-shadow:0 2px 6px rgba(217,119,6,.3);
+               transition:all .2s;
+             "
+             onmouseover="this.style.background='#b45309'"
+             onmouseout="this.style.background='#d97706'">
+            <i class="bi bi-arrow-up-circle-fill"></i> Re-upload
+          </a>
+        </div>
+      </div>
+      @endforeach
+    </div>
+  </div>
+</div>
+@endif
+
 @endsection
+

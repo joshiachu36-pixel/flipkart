@@ -12,7 +12,7 @@ class SellerProductController extends Controller
 {
     public function index()
     {
-        $seller = Auth::guard('seller')->user();
+        $seller   = Auth::guard('seller')->user();
         $products = $seller->products()->with(['category', 'brand'])->paginate(10);
         return view('seller.products.index', compact('products'));
     }
@@ -47,20 +47,36 @@ class SellerProductController extends Controller
             'price'           => $validated['price'],
             'original_price'  => $validated['original_price'] ?? 0,
             'category_id'     => $validated['category_id'],
-            // brand_id intentionally omitted — seller's business IS the brand
             'stock'           => $validated['stock'],
             'image'           => $imagePath,
-            'approval_status' => 'Pending', // Requires admin approval
+            'approval_status' => 'Pending',
             'status'          => '1',
         ]);
 
-        return redirect()->route('seller.products.variants', $seller->products()->latest()->first())->with('success', 'Product added successfully. Now configure its variants.');
+        return redirect()
+            ->route('seller.products.variants', $seller->products()->latest()->first())
+            ->with('success', 'Product submitted for review. Configure its variants while we review it.');
     }
 
     public function edit(Product $product)
     {
+        // Ownership check
         if ($product->seller_id !== Auth::guard('seller')->id()) {
             abort(403);
+        }
+
+        // Pending products are locked during admin review
+        if ($product->approval_status === 'Pending') {
+            return redirect()
+                ->route('seller.products.index')
+                ->with('error', 'This product is currently under admin review and cannot be edited.');
+        }
+
+        // Approved products are permanently locked
+        if ($product->isApprovalLocked()) {
+            return redirect()
+                ->route('seller.products.index')
+                ->with('error', 'Approved products cannot be edited via this page.');
         }
 
         $categories = Category::all();
@@ -69,8 +85,16 @@ class SellerProductController extends Controller
 
     public function update(Request $request, Product $product)
     {
+        // Ownership check
         if ($product->seller_id !== Auth::guard('seller')->id()) {
             abort(403);
+        }
+
+        // Only Rejected products can be re-uploaded by the seller
+        if (! $product->canBeReUploaded()) {
+            return redirect()
+                ->route('seller.products.index')
+                ->with('error', 'Only rejected products can be re-submitted for review.');
         }
 
         $validated = $request->validate([
@@ -79,7 +103,6 @@ class SellerProductController extends Controller
             'price'          => 'required|numeric',
             'original_price' => 'nullable|numeric',
             'category_id'    => 'required|exists:categories,id',
-            // brand_id intentionally omitted — seller's business IS the brand
             'stock'          => 'required|integer',
             'image'          => 'nullable|image',
         ]);
@@ -88,13 +111,22 @@ class SellerProductController extends Controller
             $validated['image'] = $request->file('image')->store('products', 'public');
         }
 
+        // Re-upload: reset the approval workflow back to Pending
+        $validated['approval_status'] = 'Pending';
+        $validated['rejection_reason'] = null;
+        $validated['rejected_by']      = null;
+        $validated['rejected_at']      = null;
+
         $product->update($validated);
 
-        return redirect()->route('seller.products.index')->with('success', 'Product updated successfully.');
+        return redirect()
+            ->route('seller.products.index')
+            ->with('success', 'Product re-submitted successfully. It is now under admin review.');
     }
+
     public function destroy(Product $product)
     {
-        // ── Security: only the owning seller may delete this product ──────────
+        // Ownership check
         if ($product->seller_id !== Auth::guard('seller')->id()) {
             abort(403, 'Unauthorized: you do not own this product.');
         }
@@ -104,11 +136,8 @@ class SellerProductController extends Controller
 
                 // 1. Delete variant images from storage + detach size pivot rows
                 foreach ($product->variants as $variant) {
-                    // product_variant_size has cascadeOnDelete, but we detach
-                    // explicitly first to be safe and avoid any FK issues.
                     $variant->sizes()->detach();
 
-                    // Delete variant image file from storage
                     if ($variant->image) {
                         \Illuminate\Support\Facades\Storage::disk('public')->delete($variant->image);
                     }

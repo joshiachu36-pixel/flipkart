@@ -265,24 +265,90 @@
               <span style="width:6px;height:6px;border-radius:50%;background:{{ $dot }};display:inline-block;flex-shrink:0;"></span>
               {{ $product->approval_status }}
             </span>
+            {{-- Show rejection reason below badge --}}
+            @if($product->approval_status === 'Rejected' && $product->rejection_reason)
+              <div style="margin-top:6px;font-size:.72rem;color:#991b1b;background:#fef2f2;border:1px solid #fecaca;border-radius:5px;padding:5px 8px;max-width:200px;line-height:1.4;">
+                <i class="bi bi-exclamation-circle-fill me-1"></i>
+                {{ Str::limit($product->rejection_reason, 80) }}
+              </div>
+            @endif
+            {{-- Pending: under review notice --}}
+            @if($product->approval_status === 'Pending')
+              <div style="margin-top:5px;font-size:.7rem;color:#92400e;">
+                <i class="bi bi-clock me-1"></i>Under Admin Review
+              </div>
+            @endif
           </td>
           <td style="text-align:right;">
-            <div style="display:flex;gap:6px;justify-content:flex-end;">
-              <a href="{{ route('seller.products.edit', $product) }}" class="action-btn edit" title="Edit">
-                <i class="bi bi-pencil-fill"></i>
-              </a>
-              <a href="{{ route('seller.products.variants.manage', $product) }}" class="action-btn vars" title="Manage Variants">
-                <i class="bi bi-layers-fill"></i>
-              </a>
-              <button type="button"
-                      class="action-btn del"
-                      data-bs-toggle="modal"
-                      data-bs-target="#deleteModal"
-                      data-product-id="{{ $product->id }}"
-                      data-product-name="{{ $product->name }}"
-                      title="Delete">
-                <i class="bi bi-trash-fill"></i>
-              </button>
+            <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;align-items:center;">
+
+              @if($product->approval_status === 'Rejected')
+                {{-- REJECTED: Edit (re-upload) + Variants + Delete --}}
+                <a href="{{ route('seller.products.edit', $product) }}"
+                   class="action-btn edit"
+                   title="Edit / Re-upload Product">
+                  <i class="bi bi-pencil-fill"></i>
+                </a>
+                <a href="{{ route('seller.products.variants.manage', $product) }}"
+                   class="action-btn vars"
+                   title="Manage Variants">
+                  <i class="bi bi-layers-fill"></i>
+                </a>
+                <button type="button"
+                        class="action-btn del"
+                        data-bs-toggle="modal"
+                        data-bs-target="#deleteModal"
+                        data-product-id="{{ $product->id }}"
+                        data-product-name="{{ $product->name }}"
+                        title="Delete Product">
+                  <i class="bi bi-trash-fill"></i>
+                </button>
+
+              @elseif($product->approval_status === 'Pending')
+                {{-- PENDING: Locked edit (disabled) + Variants + Delete --}}
+                <span title="Cannot edit while under admin review"
+                      class="action-btn"
+                      style="cursor:not-allowed;opacity:.5;">
+                  <i class="bi bi-pencil-fill"></i>
+                </span>
+                <a href="{{ route('seller.products.variants.manage', $product) }}"
+                   class="action-btn vars"
+                   title="Manage Variants">
+                  <i class="bi bi-layers-fill"></i>
+                </a>
+                <button type="button"
+                        class="action-btn del"
+                        data-bs-toggle="modal"
+                        data-bs-target="#deleteModal"
+                        data-product-id="{{ $product->id }}"
+                        data-product-name="{{ $product->name }}"
+                        title="Delete Product">
+                  <i class="bi bi-trash-fill"></i>
+                </button>
+
+              @else
+                {{-- APPROVED: Locked edit (disabled) + Variants + Delete --}}
+                <span title="Approved products cannot be edited"
+                      class="action-btn"
+                      style="cursor:not-allowed;opacity:.5;">
+                  <i class="bi bi-pencil-fill"></i>
+                </span>
+                <a href="{{ route('seller.products.variants.manage', $product) }}"
+                   class="action-btn vars"
+                   title="Manage Variants">
+                  <i class="bi bi-layers-fill"></i>
+                </a>
+                <button type="button"
+                        class="action-btn del"
+                        data-bs-toggle="modal"
+                        data-bs-target="#deleteModal"
+                        data-product-id="{{ $product->id }}"
+                        data-product-name="{{ $product->name }}"
+                        title="Delete Product">
+                  <i class="bi bi-trash-fill"></i>
+                </button>
+              @endif
+
             </div>
           </td>
         </tr>

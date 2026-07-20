@@ -3,25 +3,24 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Product;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use App\Models\Product;
+use App\Models\ProductApprovalHistory;
 
 class AdminProductController extends Controller
 {
-    /**
-     * Display all seller products with search & filter.
-     */
+    // ── Index — list all seller products with filter & search ─────────────────
+
     public function index(Request $request)
     {
         $query = Product::with(['seller', 'category'])
-            ->whereNotNull('seller_id'); // Only show seller-submitted products
+            ->whereNotNull('seller_id');
 
-        // Filter by approval status
         if ($request->filled('status') && in_array($request->status, ['Pending', 'Approved', 'Rejected'])) {
             $query->where('approval_status', $request->status);
         }
 
-        // Search by product name, seller name, or business name
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
@@ -35,7 +34,6 @@ class AdminProductController extends Controller
 
         $products = $query->latest()->paginate(15)->withQueryString();
 
-        // Counts for filter badges
         $counts = [
             'all'      => Product::whereNotNull('seller_id')->count(),
             'pending'  => Product::whereNotNull('seller_id')->where('approval_status', 'Pending')->count(),
@@ -46,52 +44,176 @@ class AdminProductController extends Controller
         return view('admin.products.index', compact('products', 'counts'));
     }
 
-    /**
-     * Legacy pending-only route (kept for backward compatibility).
-     */
+    // ── Legacy redirect — kept for backward compatibility ─────────────────────
+
     public function pending()
     {
         return redirect()->route('admin.products.index', ['status' => 'Pending']);
     }
 
-    /**
-     * Update the approval status of a product.
-     */
+    // ── Show — full product review page ──────────────────────────────────────
+
+    public function show(Product $product)
+    {
+        $product->load([
+            'seller',
+            'category',
+            'brand',
+            'variants.color',
+            'variants.sizes',
+            'approvalHistories',
+        ]);
+
+        return view('admin.products.show', compact('product'));
+    }
+
+    // ── Approve — locks the status permanently ────────────────────────────────
+
+    public function approve(Request $request, Product $product)
+    {
+        // Guard: only Pending products can be approved
+        if (! $product->canBeReviewed()) {
+            return back()->with('error', 'This product cannot be approved in its current state.');
+        }
+
+        DB::transaction(function () use ($product) {
+            $admin = Auth::user();
+
+            $product->update([
+                'approval_status' => 'Approved',
+                'approved_at'     => now(),
+                'approved_by'     => $admin->id,
+                // Clear any previous rejection data
+                'rejection_reason' => null,
+                'rejected_by'      => null,
+                'rejected_at'      => null,
+            ]);
+
+            // Audit history
+            ProductApprovalHistory::create([
+                'product_id' => $product->id,
+                'action'     => 'Approved',
+                'actor_id'   => $admin->id,
+                'actor_name' => $admin->name,
+                'reason'     => null,
+                'acted_at'   => now(),
+            ]);
+
+            // Seller notification via cache
+            $this->notifySeller($product, 'approved',
+                "Your product \"{$product->name}\" has been approved and is now live on the shop! 🎉"
+            );
+        });
+
+        return redirect()
+            ->route('admin.products.index', ['status' => 'Pending'])
+            ->with('success', "Product \"{$product->name}\" has been approved and is now live.");
+    }
+
+    // ── Reject — requires a mandatory reason ─────────────────────────────────
+
+    public function reject(Request $request, Product $product)
+    {
+        // Guard: only Pending products can be rejected
+        if (! $product->canBeReviewed()) {
+            return back()->with('error', 'This product cannot be rejected in its current state.');
+        }
+
+        $validated = $request->validate([
+            'rejection_reason' => 'required|string|min:10|max:1000',
+        ], [
+            'rejection_reason.required' => 'A rejection reason is required.',
+            'rejection_reason.min'      => 'Please provide a more detailed reason (at least 10 characters).',
+        ]);
+
+        DB::transaction(function () use ($product, $validated) {
+            $admin = Auth::user();
+
+            $product->update([
+                'approval_status'  => 'Rejected',
+                'rejection_reason' => $validated['rejection_reason'],
+                'rejected_by'      => $admin->id,
+                'rejected_at'      => now(),
+                // Clear any previous approval data
+                'approved_at'  => null,
+                'approved_by'  => null,
+            ]);
+
+            // Audit history
+            ProductApprovalHistory::create([
+                'product_id' => $product->id,
+                'action'     => 'Rejected',
+                'actor_id'   => $admin->id,
+                'actor_name' => $admin->name,
+                'reason'     => $validated['rejection_reason'],
+                'acted_at'   => now(),
+            ]);
+
+            // Seller notification via cache
+            $this->notifySeller($product, 'rejected',
+                "Your product \"{$product->name}\" was rejected. Reason: {$validated['rejection_reason']}"
+            );
+        });
+
+        return redirect()
+            ->route('admin.products.index', ['status' => 'Pending'])
+            ->with('success', "Product \"{$product->name}\" has been rejected with a reason.");
+    }
+
+    // ── Legacy updateStatus — kept for strict backward compatibility ──────────
+    // NOTE: The new workflow uses approve() and reject() instead.
+    // This method is preserved so no existing routes break.
+
     public function updateStatus(Request $request, Product $product)
     {
         $validated = $request->validate([
             'approval_status' => 'required|in:Pending,Approved,Rejected',
         ]);
 
+        // If product is already approved, block changes via this legacy endpoint
+        if ($product->isApprovalLocked()) {
+            return back()->with('error', 'This product is approved and locked. No further status changes are allowed.');
+        }
+
         $data = ['approval_status' => $validated['approval_status']];
 
-        // Stamp approved_at and approved_by when approving
         if ($validated['approval_status'] === 'Approved') {
             $data['approved_at'] = now();
             $data['approved_by'] = Auth::id();
         } else {
-            // Clear the approval stamps when resetting to Pending or Rejected
             $data['approved_at'] = null;
             $data['approved_by'] = null;
         }
 
         $product->update($data);
 
-        // Store a notification for the seller to see on their dashboard
         if ($product->seller_id) {
-            $notifKey  = 'seller_product_notification_' . $product->seller_id;
-            $notifMsg  = match ($validated['approval_status']) {
+            $notifMsg = match ($validated['approval_status']) {
                 'Approved' => "Your product \"{$product->name}\" has been approved and is now live on the shop.",
                 'Rejected' => "Your product \"{$product->name}\" has been rejected. Please review and update it.",
                 default    => "The status of your product \"{$product->name}\" has been updated to {$validated['approval_status']}.",
             };
-
-            // Append to session-based queue (stored in DB cache if configured, otherwise use cache)
-            $existing = cache()->get($notifKey, []);
+            $existing   = cache()->get('seller_product_notification_' . $product->seller_id, []);
             $existing[] = ['type' => strtolower($validated['approval_status']), 'message' => $notifMsg];
-            cache()->put($notifKey, $existing, now()->addDays(7));
+            cache()->put('seller_product_notification_' . $product->seller_id, $existing, now()->addDays(7));
         }
 
         return back()->with('success', "Product \"{$product->name}\" status updated to {$validated['approval_status']}.");
+    }
+
+    // ── Private Helpers ───────────────────────────────────────────────────────
+
+    private function notifySeller(Product $product, string $type, string $message): void
+    {
+        if (! $product->seller_id) {
+            return;
+        }
+
+        $key      = 'seller_product_notification_' . $product->seller_id;
+        $existing = cache()->get($key, []);
+
+        $existing[] = ['type' => $type, 'message' => $message];
+
+        cache()->put($key, $existing, now()->addDays(7));
     }
 }

@@ -237,10 +237,14 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
     Route::get('/sellers', [AdminSellerController::class, 'index'])->name('sellers.index');
     Route::post('/sellers/{seller}/update-status', [AdminSellerController::class, 'updateStatus'])->name('sellers.update');
 
-    // Product Approval — full index + legacy pending redirect
+    // Product Approval — full index + legacy pending redirect + new workflow
     Route::get('/products', [AdminProductController::class, 'index'])->name('products.index');
     Route::get('/products/pending', [AdminProductController::class, 'pending'])->name('products.pending');
+    Route::get('/products/{product}/review', [AdminProductController::class, 'show'])->name('products.show');
+    Route::post('/products/{product}/approve', [AdminProductController::class, 'approve'])->name('products.approve');
+    Route::post('/products/{product}/reject', [AdminProductController::class, 'reject'])->name('products.reject');
     Route::post('/products/{product}/update-status', [AdminProductController::class, 'updateStatus'])->name('products.update');
+
 
     // ── Admin Reports (existing + new: export PDF, download center) ───────────
     Route::get('/reports', [AdminReportController::class, 'index'])->name('reports.index');

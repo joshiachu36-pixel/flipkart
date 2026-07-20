@@ -4,7 +4,7 @@
 <div class="container-fluid py-3">
 
     {{-- Page Header --}}
-    <div class="d-flex align-items-center justify-content-between mb-4">
+    <div class="d-flex align-items-center justify-content: between mb-4">
         <div>
             <h4 class="mb-0 fw-bold">
                 <i class="bi bi-patch-check-fill text-primary me-2"></i>Product Approval
@@ -20,6 +20,12 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
 
     {{-- Status Filter Tabs --}}
     <div class="d-flex flex-wrap gap-2 mb-3">
@@ -29,15 +35,15 @@
         </a>
         <a href="{{ route('admin.products.index', ['status' => 'Pending', 'search' => request('search')]) }}"
            class="btn btn-sm {{ request('status') === 'Pending' ? 'btn-warning text-dark' : 'btn-outline-warning' }}">
-            Pending <span class="badge bg-dark ms-1">{{ $counts['pending'] }}</span>
+            ⏳ Pending <span class="badge bg-dark ms-1">{{ $counts['pending'] }}</span>
         </a>
         <a href="{{ route('admin.products.index', ['status' => 'Approved', 'search' => request('search')]) }}"
            class="btn btn-sm {{ request('status') === 'Approved' ? 'btn-success' : 'btn-outline-success' }}">
-            Approved <span class="badge bg-dark ms-1">{{ $counts['approved'] }}</span>
+            ✅ Approved <span class="badge bg-dark ms-1">{{ $counts['approved'] }}</span>
         </a>
         <a href="{{ route('admin.products.index', ['status' => 'Rejected', 'search' => request('search')]) }}"
            class="btn btn-sm {{ request('status') === 'Rejected' ? 'btn-danger' : 'btn-outline-danger' }}">
-            Rejected <span class="badge bg-dark ms-1">{{ $counts['rejected'] }}</span>
+            ❌ Rejected <span class="badge bg-dark ms-1">{{ $counts['rejected'] }}</span>
         </a>
     </div>
 
@@ -91,13 +97,15 @@
                         <tr>
                             {{-- Image --}}
                             <td class="text-center">
-                                @if($product->image)
-                                    <img src="{{ asset('storage/' . $product->image) }}"
-                                         alt="{{ $product->name }}"
-                                         class="rounded"
-                                         style="width:54px;height:54px;object-fit:cover;">
-                                @elseif($product->image && !str_starts_with($product->image, 'product'))
-                                    <img src="{{ asset('uploads/' . $product->image) }}"
+                                @php
+                                    $imgSrc = $product->image
+                                        ? (Str::startsWith($product->image, 'products/')
+                                            ? asset('storage/' . $product->image)
+                                            : asset('uploads/' . $product->image))
+                                        : null;
+                                @endphp
+                                @if($imgSrc)
+                                    <img src="{{ $imgSrc }}"
                                          alt="{{ $product->name }}"
                                          class="rounded"
                                          style="width:54px;height:54px;object-fit:cover;">
@@ -149,6 +157,9 @@
                                     <span class="badge bg-danger px-3 py-2">
                                         <i class="bi bi-x-circle-fill me-1"></i>Rejected
                                     </span>
+                                    @if($product->rejected_at)
+                                        <br><small class="text-muted">{{ $product->rejected_at->format('d M Y') }}</small>
+                                    @endif
                                 @else
                                     <span class="badge bg-warning text-dark px-3 py-2">
                                         <i class="bi bi-hourglass-split me-1"></i>Pending
@@ -156,30 +167,44 @@
                                 @endif
                             </td>
 
-                            {{-- Action Dropdown --}}
-                            <td>
-                                <form action="{{ route('admin.products.update', $product) }}"
-                                      method="POST"
-                                      class="d-inline">
-                                    @csrf
-                                    <select name="approval_status"
-                                            class="form-select form-select-sm d-inline w-auto"
-                                            onchange="this.form.submit()"
-                                            style="min-width:120px;">
-                                        <option value="Pending"
-                                                {{ $product->approval_status === 'Pending'  ? 'selected' : '' }}>
-                                            ⏳ Pending
-                                        </option>
-                                        <option value="Approved"
-                                                {{ $product->approval_status === 'Approved' ? 'selected' : '' }}>
-                                            ✅ Approve
-                                        </option>
-                                        <option value="Rejected"
-                                                {{ $product->approval_status === 'Rejected' ? 'selected' : '' }}>
-                                            ❌ Reject
-                                        </option>
-                                    </select>
-                                </form>
+                            {{-- Smart Action Column --}}
+                            <td class="text-center">
+                                @if($product->approval_status === 'Pending')
+                                    {{-- Pending → Review button --}}
+                                    <a href="{{ route('admin.products.show', $product) }}"
+                                       class="btn btn-sm btn-primary"
+                                       style="display:inline-flex;align-items:center;gap:5px;font-weight:600;">
+                                        <i class="bi bi-eye-fill"></i> Review
+                                    </a>
+
+                                @elseif($product->approval_status === 'Approved')
+                                    {{-- Approved → Locked — view only --}}
+                                    <span style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;border-radius:6px;padding:5px 10px;font-size:.75rem;font-weight:700;display:inline-flex;align-items:center;gap:4px;">
+                                        <i class="bi bi-lock-fill"></i> Locked
+                                    </span>
+                                    <br>
+                                    <a href="{{ route('admin.products.show', $product) }}"
+                                       class="btn btn-sm btn-outline-secondary mt-1"
+                                       style="font-size:.72rem;">
+                                        <i class="bi bi-eye"></i> View
+                                    </a>
+
+                                @else
+                                    {{-- Rejected → View details + rejection reason tooltip --}}
+                                    <a href="{{ route('admin.products.show', $product) }}"
+                                       class="btn btn-sm btn-outline-danger"
+                                       style="display:inline-flex;align-items:center;gap:5px;font-weight:600;"
+                                       title="{{ $product->rejection_reason ? 'Reason: '.$product->rejection_reason : 'View details' }}">
+                                        <i class="bi bi-eye-fill"></i> View
+                                    </a>
+                                    @if($product->rejection_reason)
+                                        <br>
+                                        <small class="text-muted d-block mt-1" style="font-size:.7rem;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                                               title="{{ $product->rejection_reason }}">
+                                            {{ Str::limit($product->rejection_reason, 30) }}
+                                        </small>
+                                    @endif
+                                @endif
                             </td>
                         </tr>
                         @empty
