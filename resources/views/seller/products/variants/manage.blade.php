@@ -28,6 +28,19 @@
         </div>
     @endif
 
+    @if($errors->any())
+        <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <strong>Validation Error:</strong>
+            <ul class="mb-0 mt-1 ps-3">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
+
     <div class="card shadow-sm border-0">
         <div class="card-body p-4">
 
@@ -54,10 +67,13 @@
 
                                 {{-- ── Priority ── --}}
                                 <td>
-                                    <input type="number" class="form-control form-control-sm text-center fw-bold" 
+                                    <input type="number" class="form-control form-control-sm text-center fw-bold @error("variants.$index.priority") is-invalid @enderror" 
                                            name="variants[{{ $index }}][priority]" value="{{ old("variants.$index.priority", $variant->priority ?? ($index + 1)) }}" min="1">
+                                    @error("variants.$index.priority")
+                                        <div class="invalid-feedback d-block text-center mt-1">{{ $message }}</div>
+                                    @enderror
                                     <small class="text-muted d-block text-center mt-1">
-                                        @if(($variant->priority ?? ($index + 1)) == 1)
+                                        @if(old("variants.$index.priority", $variant->priority ?? ($index + 1)) == 1)
                                             <span class="badge bg-primary-subtle text-primary border border-primary px-1">Default</span>
                                         @endif
                                     </small>
@@ -166,6 +182,94 @@
 
                             </tr>
                             @endforeach
+
+                            @if(is_array(old('variants')))
+                                @foreach(old('variants') as $oldIndex => $oldVariantData)
+                                    @if($oldIndex >= count($variants) && !empty($oldVariantData['color_id']))
+                                        @php
+                                            $oldColor = $colors->firstWhere('id', $oldVariantData['color_id']);
+                                        @endphp
+                                        <tr data-variant-id="" data-is-saved="0">
+                                            <td>
+                                                <input type="number" class="form-control form-control-sm text-center fw-bold @error("variants.$oldIndex.priority") is-invalid @enderror" 
+                                                       name="variants[{{ $oldIndex }}][priority]" value="{{ old("variants.$oldIndex.priority", $oldIndex + 1) }}" min="1">
+                                                @error("variants.$oldIndex.priority")
+                                                    <div class="invalid-feedback d-block text-center mt-1">{{ $message }}</div>
+                                                @enderror
+                                            </td>
+                                            <td>
+                                                <div class="d-flex align-items-center gap-2 mb-1">
+                                                    <div style="width:20px;height:20px;background-color:{{ $oldColor->code ?? '#000' }};border-radius:50%;border:2px solid #ddd;"></div>
+                                                    <strong class="text-dark">{{ $oldColor->name ?? 'N/A' }}</strong>
+                                                </div>
+                                                <input type="hidden" name="variants[{{ $oldIndex }}][color_id]" value="{{ $oldVariantData['color_id'] }}">
+                                            </td>
+                                            <td>
+                                                <input type="text" class="form-control form-control-sm font-monospace" 
+                                                       name="variants[{{ $oldIndex }}][sku]" value="{{ old("variants.$oldIndex.sku") }}" placeholder="Auto SKU">
+                                            </td>
+                                            <td>
+                                                <div class="border rounded p-2 bg-light">
+                                                    @foreach($sizes as $size)
+                                                        @php
+                                                            $sizeData = $oldVariantData['sizes'][$size->id] ?? [];
+                                                            $isSelected = isset($sizeData['selected']);
+                                                            $sStock = $sizeData['stock'] ?? 0;
+                                                            $sPrice = $sizeData['price'] ?? '';
+                                                            $sOrig  = $sizeData['original_price'] ?? '';
+                                                        @endphp
+                                                        <div class="size-item-row p-2 bg-white rounded border mb-2">
+                                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                                <div class="form-check">
+                                                                    <input class="form-check-input size-checkbox" type="checkbox"
+                                                                        name="variants[{{ $oldIndex }}][sizes][{{ $size->id }}][selected]"
+                                                                        value="1" {{ $isSelected ? 'checked' : '' }}>
+                                                                    <label class="form-check-label fw-bold text-dark me-2">{{ $size->name }}</label>
+                                                                </div>
+                                                                <div class="discount-badge-container"></div>
+                                                            </div>
+                                                            <div class="row g-2">
+                                                                <div class="col-4">
+                                                                    <label class="form-label mb-0 small text-muted">Stock</label>
+                                                                    <input type="number" class="form-control form-control-sm size-stock"
+                                                                        name="variants[{{ $oldIndex }}][sizes][{{ $size->id }}][stock]"
+                                                                        value="{{ $sStock }}" min="0" placeholder="Stock" {{ $isSelected ? '' : 'disabled' }}>
+                                                                </div>
+                                                                <div class="col-4">
+                                                                    <label class="form-label mb-0 small text-muted">Selling Price (₹)</label>
+                                                                    <input type="number" step="0.01" class="form-control form-control-sm size-price selling-price-input"
+                                                                        name="variants[{{ $oldIndex }}][sizes][{{ $size->id }}][price]"
+                                                                        value="{{ $sPrice }}" min="0" placeholder="Selling ₹" {{ $isSelected ? '' : 'disabled' }}>
+                                                                </div>
+                                                                <div class="col-4">
+                                                                    <label class="form-label mb-0 small text-muted">Original Price (₹)</label>
+                                                                    <input type="number" step="0.01" class="form-control form-control-sm size-original-price original-price-input"
+                                                                        name="variants[{{ $oldIndex }}][sizes][{{ $size->id }}][original_price]"
+                                                                        value="{{ $sOrig }}" min="0" placeholder="MSRP ₹" {{ $isSelected ? '' : 'disabled' }}>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <input type="file" class="form-control form-control-sm" name="variants[{{ $oldIndex }}][image]" accept="image/*">
+                                            </td>
+                                            <td>
+                                                <select class="form-select form-select-sm" name="variants[{{ $oldIndex }}][status]">
+                                                    <option value="1" {{ old("variants.$oldIndex.status") == 1 ? 'selected' : '' }}>Active</option>
+                                                    <option value="0" {{ old("variants.$oldIndex.status") == 0 ? 'selected' : '' }}>Inactive</option>
+                                                </select>
+                                            </td>
+                                            <td class="text-center">
+                                                <button type="button" class="btn btn-outline-danger btn-sm btn-delete-new">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @endif
+                                @endforeach
+                            @endif
                         </tbody>
                     </table>
                 </div>
@@ -288,9 +392,9 @@
 
 <script>
 const CSRF_TOKEN    = '{{ csrf_token() }}';
-const EXISTING_USED = @json($variants->pluck('color_id')->toArray());
+const EXISTING_USED = @json(array_values(array_unique(array_merge($variants->pluck('color_id')->toArray(), is_array(old('variants')) ? array_column(old('variants'), 'color_id') : []))));
 const SIZES_DATA    = @json($sizes->map(fn($s) => ['id' => $s->id, 'name' => $s->name]));
-let newRowIndex     = {{ $variants->count() }};
+let newRowIndex     = {{ is_array(old('variants')) ? max(count($variants), count(old('variants'))) : $variants->count() }};
 
 document.addEventListener('DOMContentLoaded', function () {
 
