@@ -155,7 +155,7 @@
                                         <i class="bi bi-eye-fill me-1"></i>Review
                                     </a>
 
-                                    @if($seller->status !== 'Approved')
+                                    @if($seller->status !== 'Approved' && app('App\Services\PermissionService')->hasPermission('sellers.approve'))
                                         <form action="{{ route('admin.sellers.approve', $seller) }}" method="POST" class="d-inline">
                                             @csrf
                                             <button type="submit" class="btn btn-sm btn-success" title="Approve Seller"
@@ -165,19 +165,19 @@
                                         </form>
                                     @endif
 
-                                    @if($seller->status === 'Pending')
+                                    @if($seller->status === 'Pending' && app('App\Services\PermissionService')->hasPermission('sellers.reject'))
                                         <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#rejectModal{{ $seller->id }}" title="Reject Seller">
                                             <i class="bi bi-x-lg"></i>
                                         </button>
                                     @endif
 
-                                    @if($seller->status === 'Approved')
+                                    @if($seller->status === 'Approved' && app('App\Services\PermissionService')->hasPermission('sellers.suspend'))
                                         <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#suspendModal{{ $seller->id }}" title="Suspend Seller">
                                             <i class="bi bi-pause-circle"></i>
                                         </button>
                                     @endif
 
-                                    @if($seller->status === 'Suspended')
+                                    @if($seller->status === 'Suspended' && app('App\Services\PermissionService')->hasPermission('sellers.approve'))
                                         <form action="{{ route('admin.sellers.restore', $seller) }}" method="POST" class="d-inline">
                                             @csrf
                                             <button type="submit" class="btn btn-sm btn-outline-success" title="Restore Seller"

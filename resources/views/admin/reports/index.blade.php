@@ -205,12 +205,14 @@
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;" class="no-print">
       <span class="ar-badge"><i class="bi bi-shield-fill-check me-1"></i>Admin</span>
+      @if(can_do('reports.export'))
       <button type="button" class="btn btn-sm btn-warning fw-bold" data-bs-toggle="modal" data-bs-target="#adminExportModal" id="openAdminExportBtn">
         📄 Export Report
       </button>
       <a href="{{ route('admin.reports.download') }}" class="btn btn-sm btn-success">
         <i class="bi bi-download me-1"></i>Download Center
       </a>
+      @endif
     </div>
   </div>
 

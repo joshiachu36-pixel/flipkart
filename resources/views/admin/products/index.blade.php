@@ -156,12 +156,20 @@
                             {{-- Smart Action Column --}}
                             <td class="text-center">
                                 @if($product->approval_status === 'Pending')
-                                    {{-- Pending → Review button --}}
+                                    {{-- Pending → Review button (requires approve or reject permission) --}}
+                                    @if(app('App\Services\PermissionService')->hasPermission('products.approve') || app('App\Services\PermissionService')->hasPermission('products.reject'))
                                     <a href="{{ route('admin.products.show', $product) }}"
                                        class="btn btn-sm btn-primary"
                                        style="display:inline-flex;align-items:center;gap:5px;font-weight:600;">
                                         <i class="bi bi-eye-fill"></i> Review
                                     </a>
+                                    @else
+                                    <a href="{{ route('admin.products.show', $product) }}"
+                                       class="btn btn-sm btn-outline-secondary"
+                                       style="display:inline-flex;align-items:center;gap:5px;">
+                                        <i class="bi bi-eye"></i> View
+                                    </a>
+                                    @endif
 
                                 @elseif($product->approval_status === 'Approved')
                                     {{-- Approved → Locked — view only --}}

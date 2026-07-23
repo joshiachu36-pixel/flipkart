@@ -80,7 +80,8 @@
       crossorigin="anonymous"
     />
 
-    
+
+    @stack('styles')
   </head>
   <!--end::Head-->
   <!--begin::Body-->
@@ -113,15 +114,254 @@
         <!--end::App Content Header-->
         <!--begin::App Content-->
         <div class="app-content">
-          <!--begin::Container-->
-          
-          <!--end::Container-->
-        <div class="content-wrapper">
+          <div class="content-wrapper">
+            @hasSection('content')
+                @yield('content')
+            @else
+                {{-- ── Default Dashboard for Root URL / ────────────────────────────────── --}}
+                <div class="container-fluid py-3">
+                    {{-- Welcome Banner --}}
+                    @php
+                        $userName = 'Admin';
+                        $roleName = 'Super Admin';
+                        if (auth()->guard('staff')->check()) {
+                            $staffUser = auth()->guard('staff')->user();
+                            $userName = $staffUser->name;
+                            $roleName = $staffUser->role ? $staffUser->role->name : 'Staff';
+                        } elseif (auth()->guard('web')->check()) {
+                            $userName = auth()->guard('web')->user()->name ?? 'Super Admin';
+                            $roleName = 'Super Admin';
+                        }
+                    @endphp
+                    <div class="card border-0 shadow-sm rounded-3 mb-4 bg-primary text-white" style="background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);">
+                        <div class="card-body p-4 d-flex align-items-center justify-content-between flex-wrap gap-3">
+                            <div>
+                                <h4 class="fw-bold mb-1">
+                                    <i class="bi bi-speedometer2 me-2"></i>Welcome back, {{ $userName }}!
+                                </h4>
+                                <p class="mb-0 text-white-50 small">
+                                    Role: <strong>{{ $roleName }}</strong> —
+                                    @if(is_super_admin())
+                                        Full unrestricted access across all marketplace modules.
+                                    @else
+                                        Dashboard & menu widgets tailored to your assigned role permissions.
+                                    @endif
+                                </p>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-white text-primary px-3 py-2 fw-semibold fs-6 shadow-sm">
+                                    <i class="bi bi-calendar3 me-1"></i>{{ now()->format('l, F j, Y') }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
 
-            @yield('content')
+                    {{-- Permission-Aware Stat Cards --}}
+                    <div class="row g-3">
 
-        </div>
+                        {{-- 1. Seller Management Widget --}}
+                        @if(can_do('sellers.view'))
+                        @php
+                            $totalSellers   = \App\Models\Seller::count();
+                            $pendingSellers = \App\Models\Seller::where('status', 'Pending')->count();
+                        @endphp
+                        <div class="col-12 col-sm-6 col-xl-3">
+                            <div class="card border-0 shadow-sm rounded-3 h-100">
+                                <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <div class="text-muted small fw-semibold text-uppercase">Sellers</div>
+                                        <div class="fs-3 fw-bold text-dark mt-1">{{ $totalSellers }}</div>
+                                        @if($pendingSellers > 0)
+                                            <span class="badge bg-warning text-dark mt-1"><i class="bi bi-clock-history me-1"></i>{{ $pendingSellers }} Pending Approval</span>
+                                        @else
+                                            <span class="small text-success mt-1"><i class="bi bi-check-circle me-1"></i>All clear</span>
+                                        @endif
+                                    </div>
+                                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-3 d-flex align-items-center justify-content-center" style="width:52px;height:52px">
+                                        <i class="bi bi-shop fs-4"></i>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-light border-0 py-2 text-end">
+                                    <a href="{{ route('admin.sellers.index') }}" class="small fw-semibold text-decoration-none">Manage Sellers <i class="bi bi-arrow-right ms-1"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
 
+                        {{-- 2. Product Management Widget --}}
+                        @if(can_do('products.view'))
+                        @php
+                            $totalProducts   = \App\Models\Product::count();
+                            $pendingProducts = \App\Models\Product::whereNotNull('seller_id')->where('approval_status', 'Pending')->count();
+                        @endphp
+                        <div class="col-12 col-sm-6 col-xl-3">
+                            <div class="card border-0 shadow-sm rounded-3 h-100">
+                                <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <div class="text-muted small fw-semibold text-uppercase">Products</div>
+                                        <div class="fs-3 fw-bold text-dark mt-1">{{ $totalProducts }}</div>
+                                        @if($pendingProducts > 0)
+                                            <span class="badge bg-warning text-dark mt-1"><i class="bi bi-hourglass-split me-1"></i>{{ $pendingProducts }} Pending Approval</span>
+                                        @else
+                                            <span class="small text-success mt-1"><i class="bi bi-check-circle me-1"></i>All approved</span>
+                                        @endif
+                                    </div>
+                                    <div class="bg-info bg-opacity-10 text-info rounded-circle p-3 d-flex align-items-center justify-content-center" style="width:52px;height:52px">
+                                        <i class="bi bi-box2-fill fs-4"></i>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-light border-0 py-2 text-end">
+                                    <a href="{{ route('admin.products.index') }}" class="small fw-semibold text-decoration-none text-info">Manage Products <i class="bi bi-arrow-right ms-1"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
+
+                        {{-- 3. Reports & Analytics Widget --}}
+                        @if(can_do('reports.view'))
+                        <div class="col-12 col-sm-6 col-xl-3">
+                            <div class="card border-0 shadow-sm rounded-3 h-100">
+                                <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <div class="text-muted small fw-semibold text-uppercase">Analytics</div>
+                                        <div class="fs-3 fw-bold text-dark mt-1">Reports</div>
+                                        <span class="small text-muted mt-1"><i class="bi bi-bar-chart-fill me-1"></i>Marketplace Intelligence</span>
+                                    </div>
+                                    <div class="bg-success bg-opacity-10 text-success rounded-circle p-3 d-flex align-items-center justify-content-center" style="width:52px;height:52px">
+                                        <i class="bi bi-graph-up-arrow fs-4"></i>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-light border-0 py-2 text-end">
+                                    <a href="{{ route('admin.reports.index') }}" class="small fw-semibold text-decoration-none text-success">View Reports <i class="bi bi-arrow-right ms-1"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
+
+                        {{-- 4. Staff Members Widget --}}
+                        @if(can_do('staff.view'))
+                        @php
+                            $totalStaff = \App\Models\Staff::where('status', 'Active')->count();
+                        @endphp
+                        <div class="col-12 col-sm-6 col-xl-3">
+                            <div class="card border-0 shadow-sm rounded-3 h-100">
+                                <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <div class="text-muted small fw-semibold text-uppercase">Active Staff</div>
+                                        <div class="fs-3 fw-bold text-dark mt-1">{{ $totalStaff }}</div>
+                                        <span class="small text-muted mt-1"><i class="bi bi-people-fill me-1"></i>Team Members</span>
+                                    </div>
+                                    <div class="bg-purple bg-opacity-10 text-primary rounded-circle p-3 d-flex align-items-center justify-content-center" style="width:52px;height:52px">
+                                        <i class="bi bi-person-badge-fill fs-4"></i>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-light border-0 py-2 text-end">
+                                    <a href="{{ route('admin.staff.index') }}" class="small fw-semibold text-decoration-none">Manage Staff <i class="bi bi-arrow-right ms-1"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
+
+                        {{-- 5. Roles & RBAC Widget --}}
+                        @if(can_do('roles.view'))
+                        @php
+                            $totalRoles = \App\Models\Role::count();
+                        @endphp
+                        <div class="col-12 col-sm-6 col-xl-3">
+                            <div class="card border-0 shadow-sm rounded-3 h-100">
+                                <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <div class="text-muted small fw-semibold text-uppercase">Roles & RBAC</div>
+                                        <div class="fs-3 fw-bold text-dark mt-1">{{ $totalRoles }}</div>
+                                        <span class="small text-muted mt-1"><i class="bi bi-shield-lock-fill me-1"></i>Access Profiles</span>
+                                    </div>
+                                    <div class="bg-dark bg-opacity-10 text-dark rounded-circle p-3 d-flex align-items-center justify-content-center" style="width:52px;height:52px">
+                                        <i class="bi bi-key-fill fs-4"></i>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-light border-0 py-2 text-end">
+                                    <a href="{{ route('admin.roles.index') }}" class="small fw-semibold text-decoration-none text-dark">Manage Roles <i class="bi bi-arrow-right ms-1"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
+
+                        {{-- 6. Categories Widget --}}
+                        @if(can_do('categories.view'))
+                        @php
+                            $totalCategories = \App\Models\Category::count();
+                        @endphp
+                        <div class="col-12 col-sm-6 col-xl-3">
+                            <div class="card border-0 shadow-sm rounded-3 h-100">
+                                <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <div class="text-muted small fw-semibold text-uppercase">Categories</div>
+                                        <div class="fs-3 fw-bold text-dark mt-1">{{ $totalCategories }}</div>
+                                        <span class="small text-muted mt-1"><i class="bi bi-box-seam me-1"></i>Catalog Taxonomy</span>
+                                    </div>
+                                    <div class="bg-teal bg-opacity-10 text-success rounded-circle p-3 d-flex align-items-center justify-content-center" style="width:52px;height:52px">
+                                        <i class="bi bi-box-seam-fill fs-4"></i>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-light border-0 py-2 text-end">
+                                    <a href="/categories" class="small fw-semibold text-decoration-none text-success">View Categories <i class="bi bi-arrow-right ms-1"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
+
+                        {{-- 7. Brands Widget --}}
+                        @if(can_do('brands.view'))
+                        @php
+                            $totalBrands = \App\Models\Brand::count();
+                        @endphp
+                        <div class="col-12 col-sm-6 col-xl-3">
+                            <div class="card border-0 shadow-sm rounded-3 h-100">
+                                <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <div class="text-muted small fw-semibold text-uppercase">Brands</div>
+                                        <div class="fs-3 fw-bold text-dark mt-1">{{ $totalBrands }}</div>
+                                        <span class="small text-muted mt-1"><i class="bi bi-tags-fill me-1"></i>Brand Directory</span>
+                                    </div>
+                                    <div class="bg-warning bg-opacity-10 text-warning rounded-circle p-3 d-flex align-items-center justify-content-center" style="width:52px;height:52px">
+                                        <i class="bi bi-tags-fill fs-4"></i>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-light border-0 py-2 text-end">
+                                    <a href="/brands" class="small fw-semibold text-decoration-none text-warning">View Brands <i class="bi bi-arrow-right ms-1"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
+
+                        {{-- 8. Collections Widget --}}
+                        @if(can_do('collections.view'))
+                        @php
+                            $totalCollections = \App\Models\Collection::count();
+                        @endphp
+                        <div class="col-12 col-sm-6 col-xl-3">
+                            <div class="card border-0 shadow-sm rounded-3 h-100">
+                                <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <div class="text-muted small fw-semibold text-uppercase">Collections</div>
+                                        <div class="fs-3 fw-bold text-dark mt-1">{{ $totalCollections }}</div>
+                                        <span class="small text-muted mt-1"><i class="bi bi-collection-fill me-1"></i>Featured Collections</span>
+                                    </div>
+                                    <div class="bg-secondary bg-opacity-10 text-secondary rounded-circle p-3 d-flex align-items-center justify-content-center" style="width:52px;height:52px">
+                                        <i class="bi bi-collection-fill fs-4"></i>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-light border-0 py-2 text-end">
+                                    <a href="{{ route('collections.index') }}" class="small fw-semibold text-decoration-none text-secondary">View Collections <i class="bi bi-arrow-right ms-1"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
+
+                    </div>
+                </div>
+            @endif
+          </div>
         </div>
         <!--end::App Content-->
       </main>
@@ -442,6 +682,8 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    @stack('scripts')
     <!--end::Script-->
   </body>
   <!--end::Body-->

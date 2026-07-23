@@ -77,7 +77,7 @@
                 {{-- Action Bar --}}
                 <div class="col-12 col-md-auto">
                     <div class="d-flex flex-wrap gap-2">
-                        @if($seller->status !== 'Approved')
+                        @if($seller->status !== 'Approved' && can_do('sellers.approve'))
                             <form action="{{ route('admin.sellers.approve', $seller) }}" method="POST" class="d-inline">
                                 @csrf
                                 <button type="submit" class="btn btn-success" onclick="return confirm('Approve this seller application?')">
@@ -86,19 +86,19 @@
                             </form>
                         @endif
 
-                        @if($seller->status === 'Pending')
+                        @if($seller->status === 'Pending' && can_do('sellers.reject'))
                             <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#rejectModal">
                                 <i class="bi bi-x-lg me-1"></i>Reject Application
                             </button>
                         @endif
 
-                        @if($seller->status === 'Approved')
+                        @if($seller->status === 'Approved' && can_do('sellers.suspend'))
                             <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#suspendModal">
                                 <i class="bi bi-pause-circle me-1"></i>Suspend Account
                             </button>
                         @endif
 
-                        @if($seller->status === 'Suspended')
+                        @if($seller->status === 'Suspended' && can_do('sellers.approve'))
                             <form action="{{ route('admin.sellers.restore', $seller) }}" method="POST" class="d-inline">
                                 @csrf
                                 <button type="submit" class="btn btn-outline-success" onclick="return confirm('Restore this seller account?')">

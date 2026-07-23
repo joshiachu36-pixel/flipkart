@@ -23,7 +23,7 @@
 <body>
     <div class="container">
         <div class="login-container">
-            <h3 class="text-center mb-4">Super Admin Login</h3>
+            <h3 class="text-center mb-4">Staff Login</h3>
             
             @if(session('success'))
                 <div class="alert alert-success">{{ session('success') }}</div>

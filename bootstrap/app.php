@@ -14,9 +14,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
 
         $middleware->alias([
-            'customer' => \App\Http\Middleware\CustomerAuth::class,
-            'admin' => \App\Http\Middleware\AdminMiddleware::class,
-            'seller' => \App\Http\Middleware\SellerMiddleware::class,
+            'customer'   => \App\Http\Middleware\CustomerAuth::class,
+            'admin'      => \App\Http\Middleware\AdminMiddleware::class,
+            'seller'     => \App\Http\Middleware\SellerMiddleware::class,
+            'superadmin' => \App\Http\Middleware\SuperAdminMiddleware::class,
+            'permission' => \App\Http\Middleware\PermissionMiddleware::class,
         ]);
 
     })

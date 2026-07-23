@@ -130,6 +130,7 @@ class AdminSellerController extends Controller
 
     public function storeDocument(Request $request, Seller $seller)
     {
+        abort_unless(can_do('sellers.edit'), 403, 'You do not have permission to upload seller documents.');
         $validated = $request->validate([
             'document_type' => 'required|string|max:100',
             'document_name' => 'required|string|max:255',
@@ -157,6 +158,7 @@ class AdminSellerController extends Controller
 
     public function approve(Seller $seller)
     {
+        abort_unless(can_do('sellers.approve'), 403, 'You do not have permission to approve sellers.');
         if ($seller->isApproved()) {
             return back()->with('error', 'This seller is already approved.');
         }
@@ -182,6 +184,7 @@ class AdminSellerController extends Controller
 
     public function reject(Request $request, Seller $seller)
     {
+        abort_unless(can_do('sellers.reject'), 403, 'You do not have permission to reject sellers.');
         $validated = $request->validate([
             'rejection_reason' => 'required|string|min:10|max:1000',
         ], [
@@ -208,6 +211,7 @@ class AdminSellerController extends Controller
 
     public function suspend(Request $request, Seller $seller)
     {
+        abort_unless(can_do('sellers.suspend'), 403, 'You do not have permission to suspend sellers.');
         if (!$seller->isApproved()) {
             return back()->with('error', 'Only approved sellers can be suspended.');
         }
@@ -236,6 +240,7 @@ class AdminSellerController extends Controller
 
     public function restore(Seller $seller)
     {
+        abort_unless(can_do('sellers.approve'), 403, 'You do not have permission to restore sellers.');
         if (!$seller->isSuspended()) {
             return back()->with('error', 'Only suspended sellers can be restored.');
         }
@@ -259,6 +264,7 @@ class AdminSellerController extends Controller
 
     public function updateStatus(Request $request, Seller $seller)
     {
+        abort_unless(can_do('sellers.edit'), 403, 'You do not have permission to update seller status.');
         $validated = $request->validate([
             'status' => 'required|in:Pending,Approved,Rejected,Suspended'
         ]);

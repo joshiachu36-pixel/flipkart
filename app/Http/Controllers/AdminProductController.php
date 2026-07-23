@@ -71,6 +71,7 @@ class AdminProductController extends Controller
 
     public function approve(Request $request, Product $product)
     {
+        abort_unless(can_do('products.approve'), 403, 'You do not have permission to approve products.');
         // Guard: only Pending products can be approved
         if (! $product->canBeReviewed()) {
             return back()->with('error', 'This product cannot be approved in its current state.');
@@ -114,6 +115,7 @@ class AdminProductController extends Controller
 
     public function reject(Request $request, Product $product)
     {
+        abort_unless(can_do('products.reject'), 403, 'You do not have permission to reject products.');
         // Guard: only Pending products can be rejected
         if (! $product->canBeReviewed()) {
             return back()->with('error', 'This product cannot be rejected in its current state.');
@@ -166,6 +168,7 @@ class AdminProductController extends Controller
 
     public function updateStatus(Request $request, Product $product)
     {
+        abort_unless(can_do('products.edit'), 403, 'You do not have permission to update product status.');
         $validated = $request->validate([
             'approval_status' => 'required|in:Pending,Approved,Rejected',
         ]);

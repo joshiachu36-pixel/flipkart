@@ -222,50 +222,56 @@
             <!--end::Color Mode Toggle-->
 
             <!--begin::User Menu Dropdown-->
+            @php
+                $headerUser = null;
+                $headerName = 'Admin';
+                $headerRole = 'Super Admin';
+                $headerMemberSince = 'Administrator';
+
+                if (auth()->guard('staff')->check()) {
+                    $headerUser = auth()->guard('staff')->user();
+                    $headerName = $headerUser->name;
+                    $headerRole = $headerUser->role ? $headerUser->role->name : 'Staff';
+                    $headerMemberSince = $headerUser->created_at ? 'Member since ' . $headerUser->created_at->format('M. Y') : 'Staff Member';
+                } elseif (auth()->guard('web')->check()) {
+                    $headerUser = auth()->guard('web')->user();
+                    $headerName = $headerUser->name ?? 'Super Admin';
+                    $headerRole = 'Super Admin';
+                    $headerMemberSince = 'Super Administrator';
+                }
+            @endphp
             <li class="nav-item dropdown user-menu">
               <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
                 <img
-                  src="{{asset('adminlte/dist/assets/img/user2-160x160.jpg')}}"
+                  src="{{ ($headerUser && !empty($headerUser->profile_photo)) ? asset($headerUser->profile_photo) : asset('adminlte/dist/assets/img/user2-160x160.jpg') }}"
                   class="user-image rounded-circle shadow"
-                  alt="User Image"
+                  alt="{{ $headerName }}"
                 />
-                <span class="d-none d-md-inline">Alexander Pierce</span>
+                <span class="d-none d-md-inline">{{ $headerName }}</span>
               </a>
               <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
                 <!--begin::User Image-->
                 <li class="user-header text-bg-primary">
                   <img
-                    src="{{asset('adminlte/dist/assets/img/user2-160x160.jpg')}}"
+                    src="{{ ($headerUser && !empty($headerUser->profile_photo)) ? asset($headerUser->profile_photo) : asset('adminlte/dist/assets/img/user2-160x160.jpg') }}"
                     class="rounded-circle shadow"
-                    alt="User Image"
+                    alt="{{ $headerName }}"
                   />
                   <p>
-                    Alexander Pierce - Web Developer
-                    <small>Member since Nov. 2023</small>
+                    {{ $headerName }} — <strong>{{ $headerRole }}</strong>
+                    <small>{{ $headerMemberSince }}</small>
                   </p>
                 </li>
                 <!--end::User Image-->
-                <!--begin::Menu Body-->
-                <li class="user-body">
-                  <!--begin::Row-->
-                  <div class="row">
-                    <div class="col-4 text-center">
-                      <a href="#">Followers</a>
-                    </div>
-                    <div class="col-4 text-center">
-                      <a href="#">Sales</a>
-                    </div>
-                    <div class="col-4 text-center">
-                      <a href="#">Friends</a>
-                    </div>
-                  </div>
-                  <!--end::Row-->
-                </li>
-                <!--end::Menu Body-->
                 <!--begin::Menu Footer-->
-                <li class="user-footer">
-                  <a href="#" class="btn btn-outline-secondary">Profile</a>
-                  <a href="#" class="btn btn-outline-danger float-end">Sign out</a>
+                <li class="user-footer d-flex justify-content-between align-items-center p-3">
+                  <span class="badge bg-light text-dark border"><i class="bi bi-shield-lock me-1"></i>{{ $headerRole }}</span>
+                  <form action="{{ route('admin.logout') }}" method="POST" class="d-inline">
+                    @csrf
+                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                      <i class="bi bi-box-arrow-right me-1"></i>Sign out
+                    </button>
+                  </form>
                 </li>
                 <!--end::Menu Footer-->
               </ul>

@@ -194,6 +194,7 @@ use App\Http\Controllers\AdminProductController;
 use App\Http\Controllers\AdminAuthController;
 use App\Http\Controllers\AdminReportController;
 use App\Http\Controllers\DownloadCenterController;
+use App\Http\Controllers\RolePermissionController;
 
 // --- Seller Auth Routes ---
 Route::prefix('seller')->name('seller.')->group(function () {
@@ -242,28 +243,50 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
 // --- Admin Marketplace Routes ---
 Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/sellers', [AdminSellerController::class, 'index'])->name('sellers.index');
-    Route::get('/sellers/{seller}', [AdminSellerController::class, 'show'])->name('sellers.show');
-    Route::post('/sellers/{seller}/documents', [AdminSellerController::class, 'storeDocument'])->name('sellers.documents.store');
-    Route::post('/sellers/{seller}/update-status', [AdminSellerController::class, 'updateStatus'])->name('sellers.update');
-    Route::post('/sellers/{seller}/approve', [AdminSellerController::class, 'approve'])->name('sellers.approve');
-    Route::post('/sellers/{seller}/reject', [AdminSellerController::class, 'reject'])->name('sellers.reject');
-    Route::post('/sellers/{seller}/suspend', [AdminSellerController::class, 'suspend'])->name('sellers.suspend');
-    Route::post('/sellers/{seller}/restore', [AdminSellerController::class, 'restore'])->name('sellers.restore');
+    Route::get('/sellers', [AdminSellerController::class, 'index'])->name('sellers.index')->middleware('permission:sellers.view');
+    Route::get('/sellers/{seller}', [AdminSellerController::class, 'show'])->name('sellers.show')->middleware('permission:sellers.view');
+    Route::post('/sellers/{seller}/documents', [AdminSellerController::class, 'storeDocument'])->name('sellers.documents.store')->middleware('permission:sellers.edit');
+    Route::post('/sellers/{seller}/update-status', [AdminSellerController::class, 'updateStatus'])->name('sellers.update')->middleware('permission:sellers.edit');
+    Route::post('/sellers/{seller}/approve', [AdminSellerController::class, 'approve'])->name('sellers.approve')->middleware('permission:sellers.approve');
+    Route::post('/sellers/{seller}/reject', [AdminSellerController::class, 'reject'])->name('sellers.reject')->middleware('permission:sellers.reject');
+    Route::post('/sellers/{seller}/suspend', [AdminSellerController::class, 'suspend'])->name('sellers.suspend')->middleware('permission:sellers.suspend');
+    Route::post('/sellers/{seller}/restore', [AdminSellerController::class, 'restore'])->name('sellers.restore')->middleware('permission:sellers.approve');
 
     // Product Approval — full index + legacy pending redirect + new workflow
-    Route::get('/products', [AdminProductController::class, 'index'])->name('products.index');
-    Route::get('/products/pending', [AdminProductController::class, 'pending'])->name('products.pending');
-    Route::get('/products/{product}/review', [AdminProductController::class, 'show'])->name('products.show');
-    Route::post('/products/{product}/approve', [AdminProductController::class, 'approve'])->name('products.approve');
-    Route::post('/products/{product}/reject', [AdminProductController::class, 'reject'])->name('products.reject');
-    Route::post('/products/{product}/update-status', [AdminProductController::class, 'updateStatus'])->name('products.update');
+    Route::get('/products', [AdminProductController::class, 'index'])->name('products.index')->middleware('permission:products.view');
+    Route::get('/products/pending', [AdminProductController::class, 'pending'])->name('products.pending')->middleware('permission:products.view');
+    Route::get('/products/{product}/review', [AdminProductController::class, 'show'])->name('products.show')->middleware('permission:products.view');
+    Route::post('/products/{product}/approve', [AdminProductController::class, 'approve'])->name('products.approve')->middleware('permission:products.approve');
+    Route::post('/products/{product}/reject', [AdminProductController::class, 'reject'])->name('products.reject')->middleware('permission:products.reject');
+    Route::post('/products/{product}/update-status', [AdminProductController::class, 'updateStatus'])->name('products.update')->middleware('permission:products.edit');
 
+    // ── Admin Reports ─────────────────────────────────────────────────────────
+    Route::get('/reports', [AdminReportController::class, 'index'])->name('reports.index')->middleware('permission:reports.view');
+    Route::get('/reports/export-pdf', [AdminReportController::class, 'exportPdf'])->name('reports.export-pdf')->middleware('permission:reports.export');
+    Route::get('/reports/download', [DownloadCenterController::class, 'adminIndex'])->name('reports.download')->middleware('permission:reports.view');
+    Route::get('/reports/download/generate', [DownloadCenterController::class, 'adminDownload'])->name('reports.download-generate')->middleware('permission:reports.export');
 
-    // ── Admin Reports (existing + new: export PDF, download center) ───────────
-    Route::get('/reports', [AdminReportController::class, 'index'])->name('reports.index');
-    Route::get('/reports/export-pdf', [AdminReportController::class, 'exportPdf'])->name('reports.export-pdf');
-    Route::get('/reports/download', [DownloadCenterController::class, 'adminIndex'])->name('reports.download');
-    Route::get('/reports/download/generate', [DownloadCenterController::class, 'adminDownload'])->name('reports.download-generate');
+    // Staff & Role Management Routes (Permission Protected)
+    Route::get('/roles', [\App\Http\Controllers\RoleController::class, 'index'])->name('roles.index')->middleware('permission:roles.view');
+    Route::get('/roles/create', [\App\Http\Controllers\RoleController::class, 'create'])->name('roles.create')->middleware('permission:roles.create');
+    Route::post('/roles', [\App\Http\Controllers\RoleController::class, 'store'])->name('roles.store')->middleware('permission:roles.create');
+    Route::get('/roles/{role}', [\App\Http\Controllers\RoleController::class, 'show'])->name('roles.show')->middleware('permission:roles.view');
+    Route::get('/roles/{role}/edit', [\App\Http\Controllers\RoleController::class, 'edit'])->name('roles.edit')->middleware('permission:roles.edit');
+    Route::put('/roles/{role}', [\App\Http\Controllers\RoleController::class, 'update'])->name('roles.update')->middleware('permission:roles.edit');
+    Route::delete('/roles/{role}', [\App\Http\Controllers\RoleController::class, 'destroy'])->name('roles.destroy')->middleware('permission:roles.delete');
+
+    Route::get('/staff', [\App\Http\Controllers\StaffController::class, 'index'])->name('staff.index')->middleware('permission:staff.view');
+    Route::get('/staff/create', [\App\Http\Controllers\StaffController::class, 'create'])->name('staff.create')->middleware('permission:staff.create');
+    Route::post('/staff', [\App\Http\Controllers\StaffController::class, 'store'])->name('staff.store')->middleware('permission:staff.create');
+    Route::get('/staff/{staff}', [\App\Http\Controllers\StaffController::class, 'show'])->name('staff.show')->middleware('permission:staff.view');
+    Route::get('/staff/{staff}/edit', [\App\Http\Controllers\StaffController::class, 'edit'])->name('staff.edit')->middleware('permission:staff.edit');
+    Route::put('/staff/{staff}', [\App\Http\Controllers\StaffController::class, 'update'])->name('staff.update')->middleware('permission:staff.edit');
+    Route::delete('/staff/{staff}', [\App\Http\Controllers\StaffController::class, 'destroy'])->name('staff.destroy')->middleware('permission:staff.delete');
+
+    // Permission Management for Roles (Super Admin Only)
+    Route::middleware(['superadmin'])->group(function () {
+        Route::get('/roles/{role}/permissions', [RolePermissionController::class, 'edit'])->name('roles.permissions.edit');
+        Route::post('/roles/{role}/permissions', [RolePermissionController::class, 'update'])->name('roles.permissions.update');
+    });
 });
 

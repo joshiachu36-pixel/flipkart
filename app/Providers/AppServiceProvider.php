@@ -25,5 +25,11 @@ class AppServiceProvider extends ServiceProvider
             'layout.shop-header',
             HeaderComposer::class
         );
+
+        // Inject permission data into the admin layout (and thus the sidebar partial)
+        View::composer(
+            'layout.admin',
+            \App\View\Composers\SidebarComposer::class
+        );
     }
 }

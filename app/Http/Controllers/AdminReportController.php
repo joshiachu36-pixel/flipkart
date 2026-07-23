@@ -22,6 +22,7 @@ class AdminReportController extends Controller
     // ─── Main admin report page (with filters) ─────────────────────────────────
     public function index(Request $request)
     {
+        abort_unless(can_do('reports.view'), 403, 'You do not have permission to view reports.');
         $data = $this->reportService->getAdminReportData($request);
         return view('admin.reports.index', $data);
     }
@@ -29,6 +30,7 @@ class AdminReportController extends Controller
     // ─── Export PDF ─────────────────────────────────────────────────────────────
     public function exportPdf(Request $request)
     {
+        abort_unless(can_do('reports.export'), 403, 'You do not have permission to export reports.');
         $data = $this->reportService->getAdminReportData($request);
         $data['generatedAt']    = now()->format('d M Y, h:i A');
         $data['appliedFilters'] = $this->buildAdminFilterSummary($request);

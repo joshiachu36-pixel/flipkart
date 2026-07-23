@@ -62,11 +62,13 @@ class DownloadCenterController extends Controller
     // ─── Admin Download Center ─────────────────────────────────────────────────
     public function adminIndex()
     {
+        abort_unless(can_do('reports.view'), 403, 'You do not have permission to access the download center.');
         return view('admin.reports.download-center');
     }
 
     public function adminDownload(Request $request)
     {
+        abort_unless(can_do('reports.export'), 403, 'You do not have permission to download reports.');
         $request->validate([
             'report_type' => 'required|in:marketplace,seller,product,category,variant,customer_interest',
             'format'      => 'required|in:pdf,print',
